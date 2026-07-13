@@ -35,8 +35,22 @@ class Router
     {
         $uri = rtrim(parse_url($uri, PHP_URL_PATH), '/');
 
-        if (empty($uri)) {
-            Response::json(['success' => true, 'message' => 'SmugFlex POS API v1.0', 'docs' => '/api/v1/docs']);
+        if (empty($uri) || $uri === '/') {
+            Response::json([
+                'success' => true,
+                'message' => 'SmugFlex POS API v1.0',
+                'status' => 'running',
+                'endpoints' => [
+                    'POST /api/v1/auth/login' => 'Login',
+                    'GET /api/v1/dashboard' => 'Dashboard (auth required)',
+                    'GET /api/v1/products' => 'Products (auth required)',
+                ],
+            ]);
+            return;
+        }
+
+        if ($uri === '/api/v1/health') {
+            Response::json(['success' => true, 'status' => 'healthy', 'time' => date('Y-m-d H:i:s')]);
             return;
         }
 
