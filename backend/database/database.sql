@@ -9,9 +9,6 @@ SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
-CREATE DATABASE IF NOT EXISTS `smugflex_pos` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `smugflex_pos`;
-
 -- ============================================================
 -- ROLES & PERMISSIONS
 -- ============================================================
