@@ -53,108 +53,135 @@ const menuItems = [
   },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, open, onClose }) {
   const { user } = useAuth();
   const location = useLocation();
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-logo">
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: 'rgba(37, 99, 235, 0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(37, 99, 235, 0.3)',
-            flexShrink: 0,
-          }}
-        >
-          <i className="bi bi-grid-3x3-gap-fill" style={{ fontSize: '1.25rem', color: '#2563EB' }} />
+    <>
+      <div
+        className={`sidebar-overlay ${open ? 'visible' : ''}`}
+        onClick={onClose}
+      />
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
+        <div className="sidebar-logo">
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'rgba(37, 99, 235, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(37, 99, 235, 0.3)',
+              flexShrink: 0,
+            }}
+          >
+            <i className="bi bi-grid-3x3-gap-fill" style={{ fontSize: '1.125rem', color: '#2563EB' }} />
+          </div>
+          {!collapsed && (
+            <div>
+              <h1 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#F8FAFC', margin: 0, lineHeight: 1.2 }}>SmugFlex</h1>
+              <p style={{ fontSize: '0.5625rem', color: '#64748B', margin: 0 }}>POS System</p>
+            </div>
+          )}
         </div>
-        {!collapsed && (
-          <div>
-            <h1 style={{ fontSize: '1rem', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>SmugFlex</h1>
-            <p style={{ fontSize: '0.625rem', color: '#64748B', margin: 0 }}>POS System</p>
-          </div>
-        )}
-      </div>
 
-      <nav className="sidebar-nav">
-        {menuItems.map((section) => (
-          <div key={section.section} className="sidebar-section">
-            {!collapsed && <div className="sidebar-section-title">{section.section}</div>}
-            {section.items.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === '/'}
-                className={({ isActive }) =>
-                  `sidebar-link ${isActive || (item.path !== '/' && location.pathname.startsWith(item.path)) ? 'active' : ''}`
-                }
-                title={collapsed ? item.label : undefined}
+        <nav className="sidebar-nav">
+          {menuItems.map((section) => (
+            <div key={section.section} className="sidebar-section">
+              {!collapsed && <div className="sidebar-section-title">{section.section}</div>}
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/'}
+                  className={({ isActive }) =>
+                    `sidebar-link ${isActive || (item.path !== '/' && location.pathname.startsWith(item.path)) ? 'active' : ''}`
+                  }
+                  title={collapsed ? item.label : undefined}
+                  onClick={onClose}
+                >
+                  <i className={`bi ${item.icon}`} />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          {!collapsed && user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}
               >
-                <i className={`bi ${item.icon}`} />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        {!collapsed && user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {user.first_name?.[0]}{user.last_name?.[0]}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#F8FAFC',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.first_name} {user.last_name}
+                </p>
+                <p
+                  style={{
+                    fontSize: '0.625rem',
+                    color: '#64748B',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.role?.name || 'User'}
+                </p>
+              </div>
+            </div>
+          )}
+          {collapsed && user && (
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 borderRadius: 8,
                 background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '0.8125rem',
+                fontSize: '0.6875rem',
                 fontWeight: 600,
-                flexShrink: 0,
+                margin: '0 auto',
               }}
+              title={`${user.first_name} ${user.last_name}`}
             >
               {user.first_name?.[0]}{user.last_name?.[0]}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <p
-                style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: '#F8FAFC',
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {user.first_name} {user.last_name}
-              </p>
-              <p
-                style={{
-                  fontSize: '0.6875rem',
-                  color: '#64748B',
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {user.role?.name || 'User'}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
