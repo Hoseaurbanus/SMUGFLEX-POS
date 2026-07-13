@@ -10,12 +10,13 @@ START TRANSACTION;
 SET time_zone = "+00:00";
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
 -- ============================================================
 -- ROLES & PERMISSIONS
 -- ============================================================
 
-CREATE TABLE `roles` (
+DROP TABLE IF EXISTS `roles`; CREATE TABLE `roles` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `slug` VARCHAR(50) NOT NULL,
@@ -27,7 +28,7 @@ CREATE TABLE `roles` (
     UNIQUE KEY `uk_roles_slug` (`slug`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `permissions` (
+DROP TABLE IF EXISTS `permissions`; CREATE TABLE `permissions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `slug` VARCHAR(100) NOT NULL,
@@ -39,7 +40,7 @@ CREATE TABLE `permissions` (
     KEY `idx_permissions_module` (`module`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `role_permissions` (
+DROP TABLE IF EXISTS `role_permissions`; CREATE TABLE `role_permissions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `role_id` INT UNSIGNED NOT NULL,
     `permission_id` INT UNSIGNED NOT NULL,
@@ -54,7 +55,7 @@ CREATE TABLE `role_permissions` (
 -- BRANCHES & WAREHOUSES
 -- ============================================================
 
-CREATE TABLE `branches` (
+DROP TABLE IF EXISTS `branches`; CREATE TABLE `branches` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `code` VARCHAR(20) NOT NULL,
@@ -71,7 +72,7 @@ CREATE TABLE `branches` (
     UNIQUE KEY `uk_branches_code` (`code`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `warehouses` (
+DROP TABLE IF EXISTS `warehouses`; CREATE TABLE `warehouses` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `code` VARCHAR(20) NOT NULL,
@@ -89,7 +90,7 @@ CREATE TABLE `warehouses` (
 -- USERS
 -- ============================================================
 
-CREATE TABLE `users` (
+DROP TABLE IF EXISTS `users`; CREATE TABLE `users` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `first_name` VARCHAR(50) NOT NULL,
     `last_name` VARCHAR(50) NOT NULL,
@@ -120,7 +121,7 @@ CREATE TABLE `users` (
 -- CATEGORIES (Nested Set)
 -- ============================================================
 
-CREATE TABLE `categories` (
+DROP TABLE IF EXISTS `categories`; CREATE TABLE `categories` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `slug` VARCHAR(120) NOT NULL,
@@ -140,7 +141,7 @@ CREATE TABLE `categories` (
 -- BRANDS
 -- ============================================================
 
-CREATE TABLE `brands` (
+DROP TABLE IF EXISTS `brands`; CREATE TABLE `brands` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `slug` VARCHAR(120) NOT NULL,
@@ -157,7 +158,7 @@ CREATE TABLE `brands` (
 -- UNITS
 -- ============================================================
 
-CREATE TABLE `units` (
+DROP TABLE IF EXISTS `units`; CREATE TABLE `units` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `short_name` VARCHAR(20) NOT NULL,
@@ -175,7 +176,7 @@ CREATE TABLE `units` (
 -- PRODUCTS
 -- ============================================================
 
-CREATE TABLE `products` (
+DROP TABLE IF EXISTS `products`; CREATE TABLE `products` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(200) NOT NULL,
     `slug` VARCHAR(220) NOT NULL,
@@ -217,7 +218,7 @@ CREATE TABLE `products` (
 -- PRODUCT VARIANTS
 -- ============================================================
 
-CREATE TABLE `product_variants` (
+DROP TABLE IF EXISTS `product_variants`; CREATE TABLE `product_variants` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `product_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(100) NOT NULL,
@@ -239,7 +240,7 @@ CREATE TABLE `product_variants` (
 -- PRODUCT STOCK
 -- ============================================================
 
-CREATE TABLE `product_stocks` (
+DROP TABLE IF EXISTS `product_stocks`; CREATE TABLE `product_stocks` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `product_id` INT UNSIGNED NOT NULL,
     `variant_id` INT UNSIGNED NULL,
@@ -263,7 +264,7 @@ CREATE TABLE `product_stocks` (
 -- STOCK MOVEMENTS
 -- ============================================================
 
-CREATE TABLE `stock_movements` (
+DROP TABLE IF EXISTS `stock_movements`; CREATE TABLE `stock_movements` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `product_id` INT UNSIGNED NOT NULL,
     `variant_id` INT UNSIGNED NULL,
@@ -291,7 +292,7 @@ CREATE TABLE `stock_movements` (
 -- CUSTOMERS
 -- ============================================================
 
-CREATE TABLE `customers` (
+DROP TABLE IF EXISTS `customers`; CREATE TABLE `customers` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `first_name` VARCHAR(50) NOT NULL,
     `last_name` VARCHAR(50) NOT NULL,
@@ -320,7 +321,7 @@ CREATE TABLE `customers` (
 -- CUSTOMER WALLET
 -- ============================================================
 
-CREATE TABLE `customer_wallets` (
+DROP TABLE IF EXISTS `customer_wallets`; CREATE TABLE `customer_wallets` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `customer_id` INT UNSIGNED NOT NULL,
     `balance` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -331,7 +332,7 @@ CREATE TABLE `customer_wallets` (
     FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE `customer_wallet_transactions` (
+DROP TABLE IF EXISTS `customer_wallet_transactions`; CREATE TABLE `customer_wallet_transactions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `wallet_id` INT UNSIGNED NOT NULL,
     `type` ENUM('credit','debit') NOT NULL,
@@ -351,7 +352,7 @@ CREATE TABLE `customer_wallet_transactions` (
 -- SUPPLIERS
 -- ============================================================
 
-CREATE TABLE `suppliers` (
+DROP TABLE IF EXISTS `suppliers`; CREATE TABLE `suppliers` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `contact_person` VARCHAR(100) NULL,
@@ -379,7 +380,7 @@ CREATE TABLE `suppliers` (
 -- PURCHASES
 -- ============================================================
 
-CREATE TABLE `purchases` (
+DROP TABLE IF EXISTS `purchases`; CREATE TABLE `purchases` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `reference_number` VARCHAR(50) NOT NULL,
     `supplier_id` INT UNSIGNED NOT NULL,
@@ -413,7 +414,7 @@ CREATE TABLE `purchases` (
     FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `purchase_items` (
+DROP TABLE IF EXISTS `purchase_items`; CREATE TABLE `purchase_items` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `purchase_id` INT UNSIGNED NOT NULL,
     `product_id` INT UNSIGNED NOT NULL,
@@ -432,7 +433,7 @@ CREATE TABLE `purchase_items` (
     FOREIGN KEY (`variant_id`) REFERENCES `product_variants`(`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `purchase_payments` (
+DROP TABLE IF EXISTS `purchase_payments`; CREATE TABLE `purchase_payments` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `purchase_id` INT UNSIGNED NOT NULL,
     `amount` DECIMAL(12,2) NOT NULL,
@@ -451,7 +452,7 @@ CREATE TABLE `purchase_payments` (
 -- SALES
 -- ============================================================
 
-CREATE TABLE `sales` (
+DROP TABLE IF EXISTS `sales`; CREATE TABLE `sales` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `invoice_number` VARCHAR(50) NOT NULL,
     `customer_id` INT UNSIGNED NULL,
@@ -489,7 +490,7 @@ CREATE TABLE `sales` (
     FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `sale_items` (
+DROP TABLE IF EXISTS `sale_items`; CREATE TABLE `sale_items` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `sale_id` INT UNSIGNED NOT NULL,
     `product_id` INT UNSIGNED NOT NULL,
@@ -508,7 +509,7 @@ CREATE TABLE `sale_items` (
     FOREIGN KEY (`variant_id`) REFERENCES `product_variants`(`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `sale_payments` (
+DROP TABLE IF EXISTS `sale_payments`; CREATE TABLE `sale_payments` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `sale_id` INT UNSIGNED NOT NULL,
     `amount` DECIMAL(12,2) NOT NULL,
@@ -528,7 +529,7 @@ CREATE TABLE `sale_payments` (
 -- SALES RETURNS & REFUNDS
 -- ============================================================
 
-CREATE TABLE `sale_returns` (
+DROP TABLE IF EXISTS `sale_returns`; CREATE TABLE `sale_returns` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `return_number` VARCHAR(50) NOT NULL,
     `sale_id` INT UNSIGNED NOT NULL,
@@ -550,7 +551,7 @@ CREATE TABLE `sale_returns` (
     FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `return_items` (
+DROP TABLE IF EXISTS `return_items`; CREATE TABLE `return_items` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `return_id` INT UNSIGNED NOT NULL,
     `sale_item_id` INT UNSIGNED NOT NULL,
@@ -570,7 +571,7 @@ CREATE TABLE `return_items` (
 -- EXPENSES
 -- ============================================================
 
-CREATE TABLE `expense_categories` (
+DROP TABLE IF EXISTS `expense_categories`; CREATE TABLE `expense_categories` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `description` TEXT NULL,
@@ -580,7 +581,7 @@ CREATE TABLE `expense_categories` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `expenses` (
+DROP TABLE IF EXISTS `expenses`; CREATE TABLE `expenses` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `reference_number` VARCHAR(50) NOT NULL,
     `expense_category_id` INT UNSIGNED NOT NULL,
@@ -609,7 +610,7 @@ CREATE TABLE `expenses` (
 -- COUPONS & GIFT CARDS
 -- ============================================================
 
-CREATE TABLE `coupons` (
+DROP TABLE IF EXISTS `coupons`; CREATE TABLE `coupons` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `code` VARCHAR(50) NOT NULL,
     `type` ENUM('percentage','fixed') NOT NULL DEFAULT 'percentage',
@@ -627,7 +628,7 @@ CREATE TABLE `coupons` (
     UNIQUE KEY `uk_coupons_code` (`code`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `gift_cards` (
+DROP TABLE IF EXISTS `gift_cards`; CREATE TABLE `gift_cards` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `code` VARCHAR(50) NOT NULL,
     `balance` DECIMAL(12,2) NOT NULL,
@@ -646,7 +647,7 @@ CREATE TABLE `gift_cards` (
 -- LOYALTY / REWARD POINTS
 -- ============================================================
 
-CREATE TABLE `reward_transactions` (
+DROP TABLE IF EXISTS `reward_transactions`; CREATE TABLE `reward_transactions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `customer_id` INT UNSIGNED NOT NULL,
     `type` ENUM('earned','redeemed','adjusted') NOT NULL,
@@ -663,7 +664,7 @@ CREATE TABLE `reward_transactions` (
 -- SHIFTS & CASH DRAWERS
 -- ============================================================
 
-CREATE TABLE `shifts` (
+DROP TABLE IF EXISTS `shifts`; CREATE TABLE `shifts` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` INT UNSIGNED NOT NULL,
     `branch_id` INT UNSIGNED NOT NULL,
@@ -689,7 +690,7 @@ CREATE TABLE `shifts` (
 -- ATTENDANCE & PAYROLL
 -- ============================================================
 
-CREATE TABLE `attendance` (
+DROP TABLE IF EXISTS `attendance`; CREATE TABLE `attendance` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` INT UNSIGNED NOT NULL,
     `date` DATE NOT NULL,
@@ -706,7 +707,7 @@ CREATE TABLE `attendance` (
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE `payroll` (
+DROP TABLE IF EXISTS `payroll`; CREATE TABLE `payroll` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` INT UNSIGNED NOT NULL,
     `period_start` DATE NOT NULL,
@@ -734,7 +735,7 @@ CREATE TABLE `payroll` (
 -- NOTIFICATIONS
 -- ============================================================
 
-CREATE TABLE `notifications` (
+DROP TABLE IF EXISTS `notifications`; CREATE TABLE `notifications` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` INT UNSIGNED NULL,
     `title` VARCHAR(200) NOT NULL,
@@ -756,7 +757,7 @@ CREATE TABLE `notifications` (
 -- ACTIVITY LOGS
 -- ============================================================
 
-CREATE TABLE `activity_logs` (
+DROP TABLE IF EXISTS `activity_logs`; CREATE TABLE `activity_logs` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` INT UNSIGNED NULL,
     `action` VARCHAR(50) NOT NULL,
@@ -779,7 +780,7 @@ CREATE TABLE `activity_logs` (
 -- SETTINGS
 -- ============================================================
 
-CREATE TABLE `company` (
+DROP TABLE IF EXISTS `company`; CREATE TABLE `company` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(200) NOT NULL DEFAULT 'SmugFlex Store',
     `slug` VARCHAR(200) NULL,
@@ -806,7 +807,7 @@ CREATE TABLE `company` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `settings` (
+DROP TABLE IF EXISTS `settings`; CREATE TABLE `settings` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `group_name` VARCHAR(50) NOT NULL DEFAULT 'general',
     `setting_key` VARCHAR(100) NOT NULL,
@@ -823,7 +824,7 @@ CREATE TABLE `settings` (
 -- BACKUPS LOG
 -- ============================================================
 
-CREATE TABLE `backups` (
+DROP TABLE IF EXISTS `backups`; CREATE TABLE `backups` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `filename` VARCHAR(255) NOT NULL,
     `size` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -1108,4 +1109,5 @@ INSERT INTO `settings` (`group_name`, `setting_key`, `setting_value`, `type`, `c
 ('backup', 'auto_backup', '0', 'boolean', NOW(), NOW()),
 ('backup', 'backup_frequency', 'daily', 'text', NOW(), NOW());
 
+SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
