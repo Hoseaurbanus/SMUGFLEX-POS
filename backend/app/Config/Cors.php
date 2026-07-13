@@ -9,6 +9,7 @@ class Cors extends BaseConfig
     public $enabled = true;
 
     public $allowedOrigins = [
+        'https://smugflex-pos-mrfb.vercel.app',
         'http://localhost:5173',
         'http://localhost:3000',
     ];

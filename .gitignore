@@ -5,8 +5,7 @@ node_modules/
 dist/
 build/
 
-# Environment files
-.env
+# Environment files (except production configs)
 .env.local
 .env.development.local
 .env.test.local
@@ -28,6 +27,7 @@ Thumbs.db
 npm-debug.log*
 
 # Backend
+*.zip
 backend/vendor/
 backend/writable/session/*
 !backend/writable/session/.gitkeep
