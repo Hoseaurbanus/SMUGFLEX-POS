@@ -8,6 +8,8 @@ SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
 
 -- ============================================================
 -- ROLES & PERMISSIONS
@@ -792,7 +794,7 @@ CREATE TABLE `company` (
     `registration_number` VARCHAR(50) NULL,
     `website` VARCHAR(200) NULL,
     `currency` VARCHAR(10) NOT NULL DEFAULT 'NGN',
-    `currency_symbol` VARCHAR(10) NOT NULL DEFAULT '₦',
+    `currency_symbol` VARCHAR(10) NOT NULL DEFAULT 'NGN',
     `tax_rate` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
     `receipt_header` TEXT NULL,
     `receipt_footer` TEXT NULL,
@@ -992,7 +994,7 @@ INSERT INTO `users` (`first_name`, `last_name`, `email`, `password`, `role_id`, 
 
 -- Insert default company
 INSERT INTO `company` (`name`, `email`, `phone`, `address`, `city`, `country`, `currency`, `currency_symbol`, `tax_rate`, `timezone`, `created_at`, `updated_at`) VALUES
-('SmugFlex Ventures', 'info@smugflex.com', '+234 800 123 4567', '123 SmugFlex Avenue', 'Lagos', 'Nigeria', 'NGN', '₦', 7.50, 'Africa/Lagos', NOW(), NOW());
+('SmugFlex Ventures', 'info@smugflex.com', '+234 800 123 4567', '123 SmugFlex Avenue', 'Lagos', 'Nigeria', 'NGN', 'NGN', 7.50, 'Africa/Lagos', NOW(), NOW());
 
 -- Insert default expense categories
 INSERT INTO `expense_categories` (`name`, `description`, `created_at`) VALUES
