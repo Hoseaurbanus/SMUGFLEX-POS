@@ -1,0 +1,409 @@
+/* ============================================================
+   SmugFlex POS - Dark Theme
+   ============================================================ */
+
+:root {
+  --sf-primary: #2563EB;
+  --sf-primary-hover: #1D4ED8;
+  --sf-primary-light: #3B82F6;
+  --sf-primary-dark: #1E40AF;
+  --sf-secondary: #1E293B;
+  --sf-secondary-light: #334155;
+  --sf-background: #0F172A;
+  --sf-background-light: #1E293B;
+  --sf-card: #16213E;
+  --sf-card-hover: #1A2744;
+  --sf-success: #22C55E;
+  --sf-success-light: #16A34A;
+  --sf-danger: #EF4444;
+  --sf-danger-light: #DC2626;
+  --sf-warning: #F59E0B;
+  --sf-warning-light: #D97706;
+  --sf-info: #38BDF8;
+  --sf-info-light: #0EA5E9;
+  --sf-text: #F8FAFC;
+  --sf-text-secondary: #CBD5E1;
+  --sf-muted: #94A3B8;
+  --sf-border: #334155;
+  --sf-border-light: #475569;
+  --sf-input-bg: #1E293B;
+  --sf-sidebar-bg: #0B1120;
+  --sf-sidebar-active: rgba(37, 99, 235, 0.15);
+  --sf-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sf-glass-bg: rgba(22, 33, 62, 0.7);
+  --sf-glass-border: rgba(255, 255, 255, 0.1);
+  --sf-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --sf-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --sf-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --sf-radius: 12px;
+  --sf-radius-sm: 8px;
+  --sf-radius-lg: 16px;
+  --sf-transition: all 0.2s ease;
+  --sf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--sf-font);
+  background-color: var(--sf-background);
+  color: var(--sf-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sf-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sf-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sf-border-light);
+}
+
+/* ============================================================
+   BOOTSTRAP OVERRIDES
+   ============================================================ */
+
+.form-control,
+.form-select {
+  background-color: var(--sf-input-bg) !important;
+  border-color: var(--sf-border) !important;
+  color: var(--sf-text) !important;
+  border-radius: var(--sf-radius-sm) !important;
+  padding: 0.625rem 0.875rem !important;
+  transition: var(--sf-transition);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--sf-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+.form-control::placeholder {
+  color: var(--sf-muted) !important;
+}
+
+.form-label {
+  color: var(--sf-text-secondary) !important;
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.form-text {
+  color: var(--sf-muted) !important;
+  font-size: 0.75rem;
+}
+
+.input-group-text {
+  background-color: var(--sf-card) !important;
+  border-color: var(--sf-border) !important;
+  color: var(--sf-muted) !important;
+  border-radius: var(--sf-radius-sm) !important;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.btn {
+  border-radius: var(--sf-radius-sm) !important;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  transition: var(--sf-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: var(--sf-primary) !important;
+  border-color: var(--sf-primary) !important;
+  color: white !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--sf-primary-hover) !important;
+  border-color: var(--sf-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--sf-shadow);
+}
+
+.btn-secondary {
+  background-color: var(--sf-secondary) !important;
+  border-color: var(--sf-border) !important;
+  color: var(--sf-text) !important;
+}
+
+.btn-secondary:hover {
+  background-color: var(--sf-secondary-light) !important;
+}
+
+.btn-success {
+  background-color: var(--sf-success) !important;
+  border-color: var(--sf-success) !important;
+}
+
+.btn-danger {
+  background-color: var(--sf-danger) !important;
+  border-color: var(--sf-danger) !important;
+}
+
+.btn-outline-primary {
+  border-color: var(--sf-primary) !important;
+  color: var(--sf-primary) !important;
+  background: transparent !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--sf-primary) !important;
+  color: white !important;
+}
+
+.btn-outline-secondary {
+  border-color: var(--sf-border) !important;
+  color: var(--sf-text-secondary) !important;
+  background: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--sf-secondary) !important;
+  color: var(--sf-text) !important;
+}
+
+.btn-ghost {
+  background: transparent !important;
+  border: none !important;
+  color: var(--sf-muted) !important;
+  padding: 0.5rem !important;
+}
+
+.btn-ghost:hover {
+  color: var(--sf-text) !important;
+  background-color: var(--sf-sidebar-hover) !important;
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+
+.card {
+  background-color: var(--sf-card) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius) !important;
+  box-shadow: var(--sf-shadow) !important;
+}
+
+.card-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--sf-border) !important;
+  color: var(--sf-text) !important;
+  padding: 1rem 1.25rem;
+}
+
+.card-body {
+  color: var(--sf-text) !important;
+  padding: 1.25rem;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+
+.table {
+  color: var(--sf-text) !important;
+  margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: var(--sf-text-secondary) !important;
+  border-bottom-color: var(--sf-border) !important;
+  padding: 0.875rem;
+  font-size: 0.875rem;
+}
+
+.table > thead {
+  background-color: var(--sf-background) !important;
+}
+
+.table > thead > tr > th {
+  color: var(--sf-muted) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--sf-border) !important;
+}
+
+.table-hover > tbody > tr:hover > * {
+  color: var(--sf-text) !important;
+  background-color: var(--sf-sidebar-hover) !important;
+}
+
+/* ============================================================
+   BADGES & STATUS
+   ============================================================ */
+
+.badge {
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+  border-radius: 6px;
+}
+
+.badge-success {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+  color: var(--sf-success) !important;
+}
+
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: var(--sf-danger) !important;
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: var(--sf-warning) !important;
+}
+
+.badge-info {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: var(--sf-info) !important;
+}
+
+.badge-primary {
+  background-color: rgba(37, 99, 235, 0.15) !important;
+  color: var(--sf-primary-light) !important;
+}
+
+/* ============================================================
+   MODAL
+   ============================================================
+
+.modal-content {
+  background-color: var(--sf-card) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius-lg) !important;
+  box-shadow: var(--sf-shadow-xl) !important;
+}
+
+.modal-header {
+  border-bottom-color: var(--sf-border) !important;
+  padding: 1.25rem 1.5rem;
+}
+
+.modal-title {
+  color: var(--sf-text) !important;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  color: var(--sf-text) !important;
+}
+
+.modal-footer {
+  border-top-color: var(--sf-border) !important;
+  padding: 1rem 1.5rem;
+}
+
+.btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ============================================================
+   DROPDOWN
+   ============================================================ */
+
+.dropdown-menu {
+  background-color: var(--sf-card) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius-sm) !important;
+  box-shadow: var(--sf-shadow-lg) !important;
+  padding: 0.5rem;
+}
+
+.dropdown-item {
+  color: var(--sf-text-secondary) !important;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.dropdown-item:hover {
+  background-color: var(--sf-sidebar-hover) !important;
+  color: var(--sf-text) !important;
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+
+.page-link {
+  background-color: var(--sf-card) !important;
+  border-color: var(--sf-border) !important;
+  color: var(--sf-text-secondary) !important;
+}
+
+.page-item.active .page-link {
+  background-color: var(--sf-primary) !important;
+  border-color: var(--sf-primary) !important;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease forwards;
+}
