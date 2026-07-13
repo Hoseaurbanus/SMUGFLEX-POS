@@ -50,6 +50,7 @@ class AuthController
 
         Response::success([
             'token' => $token,
+            'refresh_token' => $token,
             'user' => $user,
         ], 'Login successful');
     }
@@ -119,6 +120,7 @@ class AuthController
 
         Response::success([
             'token' => $token,
+            'refresh_token' => $token,
             'user' => $user,
         ], 'Token refreshed');
     }
@@ -143,13 +145,13 @@ class AuthController
         }
 
         $permissions = $db->fetchAll(
-            "SELECT p.name, p.description FROM permissions p
+            "SELECT p.name FROM permissions p
              JOIN role_permissions rp ON rp.permission_id = p.id
              WHERE rp.role_id = ?",
             [$user['role_id']]
         );
 
-        $user['permissions'] = $permissions;
+        $user['permissions'] = array_column($permissions, 'name');
 
         Response::success($user);
     }
