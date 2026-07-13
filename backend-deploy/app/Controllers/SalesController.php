@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Controllers;
 
@@ -18,91 +18,148 @@ class SalesController
             Response::error('Items are required', 422);
         }
 
+        if (empty($body['branch_id']) || empty($body['warehouse_id'])) {
+            Response::error('Branch ID and Warehouse ID are required', 422);
+        }
+
         $db = Database::getInstance();
-        $total = 0;
-        $discountAmount = (float)($body['discount'] ?? 0);
-        $taxAmount = (float)($body['tax'] ?? 0);
+        $subtotal = 0;
+        $discountAmount = (float)($body['discount_amount'] ?? 0);
+        $taxAmount = (float)($body['tax_amount'] ?? 0);
+        $shippingCost = (float)($body['shipping_cost'] ?? 0);
 
         foreach ($body['items'] as $item) {
             if (empty($item['product_id']) || empty($item['quantity'])) {
                 Response::error('Each item must have product_id and quantity', 422);
             }
-            $product = $db->fetch("SELECT id, stock_quantity, selling_price FROM products WHERE id = ? AND is_deleted = 0", [$item['product_id']]);
+            $product = $db->fetch(
+                "SELECT id, selling_price FROM products WHERE id = ? AND deleted_at IS NULL",
+                [$item['product_id']]
+            );
             if (!$product) {
                 Response::error("Product {$item['product_id']} not found", 404);
             }
-            if ($product['stock_quantity'] < $item['quantity']) {
+
+            $stock = $db->fetch(
+                "SELECT COALESCE(SUM(quantity), 0) as qty FROM product_stocks WHERE product_id = ? AND warehouse_id = ?",
+                [$item['product_id'], $body['warehouse_id']]
+            );
+            if ((float)$stock['qty'] < (float)$item['quantity']) {
                 Response::error("Insufficient stock for product {$item['product_id']}", 400);
             }
-            $subtotal = ($item['price'] ?? $product['selling_price']) * $item['quantity'];
-            $total += $subtotal;
+
+            $itemPrice = $item['unit_price'] ?? $product['selling_price'];
+            $itemSubtotal = $itemPrice * $item['quantity'];
+            $itemDiscount = $item['discount'] ?? 0;
+            $itemTaxRate = $item['tax_rate'] ?? 0;
+            $itemTaxAmount = ($itemSubtotal - $itemDiscount) * $itemTaxRate / 100;
+            $subtotal += $itemSubtotal - $itemDiscount + $itemTaxAmount;
         }
 
-        $total = $total - $discountAmount + $taxAmount;
+        $total = $subtotal - $discountAmount + $taxAmount + $shippingCost;
+        $paidAmount = (float)($body['paid_amount'] ?? $total);
+        $dueAmount = $total - $paidAmount;
+        $paymentStatus = 'paid';
+        if ($dueAmount > 0 && $paidAmount > 0) {
+            $paymentStatus = 'partial';
+        } elseif ($dueAmount >= $total) {
+            $paymentStatus = 'unpaid';
+        }
 
         $saleId = $db->insert('sales', [
-            'reference_number' => generate_reference('SAL'),
+            'invoice_number' => generate_reference('INV'),
             'customer_id' => $body['customer_id'] ?? null,
             'user_id' => get_user_id(),
-            'subtotal' => $total + $discountAmount - $taxAmount,
-            'discount' => $discountAmount,
-            'tax' => $taxAmount,
+            'branch_id' => $body['branch_id'],
+            'warehouse_id' => $body['warehouse_id'],
+            'subtotal' => $subtotal,
+            'discount_amount' => $discountAmount,
+            'tax_amount' => $taxAmount,
+            'shipping_cost' => $shippingCost,
             'total' => $total,
+            'paid_amount' => $paidAmount,
+            'due_amount' => max(0, $dueAmount),
+            'payment_status' => $paymentStatus,
+            'sale_status' => 'completed',
             'payment_method' => $body['payment_method'] ?? 'cash',
-            'amount_paid' => $body['amount_paid'] ?? $total,
-            'status' => 'completed',
+            'coupon_code' => $body['coupon_code'] ?? null,
+            'discount_type' => $body['discount_type'] ?? null,
             'notes' => $body['notes'] ?? null,
+            'sale_date' => date('Y-m-d'),
+            'sale_time' => date('H:i:s'),
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         foreach ($body['items'] as $item) {
             $product = $db->fetch("SELECT id, selling_price FROM products WHERE id = ?", [$item['product_id']]);
-            $price = $item['price'] ?? $product['selling_price'];
-            $subtotal = $price * $item['quantity'];
+            $itemPrice = $item['unit_price'] ?? $product['selling_price'];
+            $itemSubtotal = $itemPrice * $item['quantity'];
+            $itemDiscount = $item['discount'] ?? 0;
+            $itemTaxRate = $item['tax_rate'] ?? 0;
+            $itemTaxAmount = ($itemSubtotal - $itemDiscount) * $itemTaxRate / 100;
 
             $db->insert('sale_items', [
                 'sale_id' => $saleId,
                 'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
                 'quantity' => $item['quantity'],
-                'price' => $price,
-                'subtotal' => $subtotal,
+                'unit_price' => $itemPrice,
+                'discount' => $itemDiscount,
+                'tax_rate' => $itemTaxRate,
+                'tax_amount' => $itemTaxAmount,
+                'subtotal' => $itemSubtotal - $itemDiscount + $itemTaxAmount,
+                'total' => $itemSubtotal - $itemDiscount + $itemTaxAmount,
+                'created_at' => date('Y-m-d H:i:s'),
             ]);
 
-            $db->query(
-                "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?",
-                [$item['quantity'], $item['product_id']]
+            $existingStock = $db->fetch(
+                "SELECT id, quantity FROM product_stocks WHERE product_id = ? AND warehouse_id = ? AND variant_id IS NULL",
+                [$item['product_id'], $body['warehouse_id']]
             );
+
+            if ($existingStock) {
+                $db->update('product_stocks', [
+                    'quantity' => $existingStock['quantity'] - $item['quantity'],
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$existingStock['id']]);
+            }
 
             $db->insert('stock_movements', [
                 'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
+                'warehouse_id' => $body['warehouse_id'],
                 'type' => 'sale',
                 'quantity' => -$item['quantity'],
-                'reference' => $saleId,
-                'notes' => "Sale #{$saleId}",
+                'reference_type' => 'App\Models\Sale',
+                'reference_id' => $saleId,
+                'notes' => "Sale #$saleId",
+                'user_id' => get_user_id(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
-        if (!empty($body['customer_id']) && $body['payment_method'] === 'wallet') {
-            $customer = $db->fetch("SELECT wallet_balance FROM customers WHERE id = ?", [$body['customer_id']]);
-            if ($customer) {
-                $newBalance = (float)$customer['wallet_balance'] - $total;
-                $db->update('customers', ['wallet_balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$body['customer_id']]);
-                $db->insert('wallet_transactions', [
-                    'customer_id' => $body['customer_id'],
-                    'type' => 'deduction',
-                    'amount' => -$total,
+        if (!empty($body['customer_id']) && ($body['payment_method'] ?? '') === 'wallet') {
+            $wallet = $db->fetch("SELECT id, balance FROM customer_wallets WHERE customer_id = ?", [$body['customer_id']]);
+            if ($wallet) {
+                $newBalance = (float)$wallet['balance'] - $total;
+                $db->update('customer_wallets', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$wallet['id']]);
+                $db->insert('customer_wallet_transactions', [
+                    'wallet_id' => $wallet['id'],
+                    'type' => 'debit',
+                    'amount' => $total,
                     'balance_after' => $newBalance,
                     'description' => "Payment for sale #$saleId",
-                    'reference' => generate_reference('WLT'),
+                    'reference_type' => 'App\Models\Sale',
+                    'reference_id' => $saleId,
+                    'user_id' => get_user_id(),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
         }
 
         $sale = $db->fetch("SELECT * FROM sales WHERE id = ?", [$saleId]);
-        $items = $db->fetchAll("SELECT si.*, p.name as product_name FROM sale_items si JOIN products p ON p.id = si.product_id WHERE si.sale_id = ?", [$saleId]);
+        $items = $db->fetchAll("SELECT si.*, p.name as product_name, p.sku FROM sale_items si JOIN products p ON p.id = si.product_id WHERE si.sale_id = ?", [$saleId]);
         $sale['items'] = $items;
 
         Response::success($sale, 'Sale completed', 201);
@@ -120,21 +177,33 @@ class SalesController
         $where = "1=1";
         $queryParams = [];
 
-        if (!empty($params['status'])) {
-            $where .= " AND s.status = ?";
-            $queryParams[] = $params['status'];
+        if (!empty($params['sale_status'])) {
+            $where .= " AND s.sale_status = ?";
+            $queryParams[] = $params['sale_status'];
+        }
+        if (!empty($params['payment_status'])) {
+            $where .= " AND s.payment_status = ?";
+            $queryParams[] = $params['payment_status'];
         }
         if (!empty($params['date_from'])) {
-            $where .= " AND s.created_at >= ?";
-            $queryParams[] = $params['date_from'] . ' 00:00:00';
+            $where .= " AND s.sale_date >= ?";
+            $queryParams[] = $params['date_from'];
         }
         if (!empty($params['date_to'])) {
-            $where .= " AND s.created_at <= ?";
-            $queryParams[] = $params['date_to'] . ' 23:59:59';
+            $where .= " AND s.sale_date <= ?";
+            $queryParams[] = $params['date_to'];
+        }
+        if (!empty($params['branch_id'])) {
+            $where .= " AND s.branch_id = ?";
+            $queryParams[] = $params['branch_id'];
+        }
+        if (!empty($params['warehouse_id'])) {
+            $where .= " AND s.warehouse_id = ?";
+            $queryParams[] = $params['warehouse_id'];
         }
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND (s.reference_number LIKE ? OR c.name LIKE ?)";
+            $where .= " AND (s.invoice_number LIKE ? OR CONCAT(c.first_name, ' ', c.last_name) LIKE ?)";
             $queryParams = array_merge($queryParams, [$search, $search]);
         }
 
@@ -144,7 +213,8 @@ class SalesController
         )['cnt'];
 
         $sales = $db->fetchAll(
-            "SELECT s.*, c.name as customer_name, u.name as cashier_name
+            "SELECT s.*, CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+                    CONCAT(u.first_name, ' ', u.last_name) as cashier_name
              FROM sales s
              LEFT JOIN customers c ON c.id = s.customer_id
              LEFT JOIN users u ON u.id = s.user_id
@@ -163,7 +233,8 @@ class SalesController
         $db = Database::getInstance();
 
         $sale = $db->fetch(
-            "SELECT s.*, c.name as customer_name, u.name as cashier_name
+            "SELECT s.*, CONCAT(c.first_name, ' ', c.last_name) as customer_name, c.phone as customer_phone,
+                    CONCAT(u.first_name, ' ', u.last_name) as cashier_name
              FROM sales s
              LEFT JOIN customers c ON c.id = s.customer_id
              LEFT JOIN users u ON u.id = s.user_id
@@ -182,7 +253,16 @@ class SalesController
             [$id]
         );
 
+        $payments = $db->fetchAll(
+            "SELECT sp.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
+             FROM sale_payments sp
+             LEFT JOIN users u ON u.id = sp.user_id
+             WHERE sp.sale_id = ? ORDER BY sp.created_at DESC",
+            [$id]
+        );
+
         $sale['items'] = $items;
+        $sale['payments'] = $payments;
 
         Response::success($sale);
     }
@@ -190,55 +270,65 @@ class SalesController
     public function void(string $id): void
     {
         AuthMiddleware::authenticate();
-        $body = Request::getBody();
         $db = Database::getInstance();
 
-        $sale = $db->fetch("SELECT id, status, customer_id FROM sales WHERE id = ?", [$id]);
+        $sale = $db->fetch("SELECT id, sale_status, customer_id, warehouse_id, total, payment_method FROM sales WHERE id = ?", [$id]);
         if (!$sale) {
             Response::error('Sale not found', 404);
         }
 
-        if ($sale['status'] === 'voided') {
+        if ($sale['sale_status'] === 'voided') {
             Response::error('Sale already voided', 409);
         }
 
         $items = $db->fetchAll("SELECT * FROM sale_items WHERE sale_id = ?", [$id]);
         foreach ($items as $item) {
-            $db->query(
-                "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
-                [$item['quantity'], $item['product_id']]
+            $existingStock = $db->fetch(
+                "SELECT id, quantity FROM product_stocks WHERE product_id = ? AND warehouse_id = ? AND variant_id IS NULL",
+                [$item['product_id'], $sale['warehouse_id']]
             );
+
+            if ($existingStock) {
+                $db->update('product_stocks', [
+                    'quantity' => $existingStock['quantity'] + $item['quantity'],
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$existingStock['id']]);
+            }
+
             $db->insert('stock_movements', [
                 'product_id' => $item['product_id'],
-                'type' => 'void',
+                'variant_id' => $item['variant_id'] ?? null,
+                'warehouse_id' => $sale['warehouse_id'],
+                'type' => 'sale',
                 'quantity' => $item['quantity'],
-                'reference' => $id,
+                'reference_type' => 'App\Models\Sale',
+                'reference_id' => $id,
                 'notes' => "Sale #$id voided",
+                'user_id' => get_user_id(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
-        if ($sale['customer_id']) {
-            $saleData = $db->fetch("SELECT total, payment_method FROM sales WHERE id = ?", [$id]);
-            if ($saleData['payment_method'] === 'wallet') {
-                $customer = $db->fetch("SELECT wallet_balance FROM customers WHERE id = ?", [$sale['customer_id']]);
-                if ($customer) {
-                    $newBalance = (float)$customer['wallet_balance'] + (float)$saleData['total'];
-                    $db->update('customers', ['wallet_balance' => $newBalance], 'id = ?', [$sale['customer_id']]);
-                    $db->insert('wallet_transactions', [
-                        'customer_id' => $sale['customer_id'],
-                        'type' => 'topup',
-                        'amount' => $saleData['total'],
-                        'balance_after' => $newBalance,
-                        'description' => "Sale #$id voided - refund",
-                        'reference' => generate_reference('WLT'),
-                        'created_at' => date('Y-m-d H:i:s'),
-                    ]);
-                }
+        if ($sale['customer_id'] && $sale['payment_method'] === 'wallet') {
+            $wallet = $db->fetch("SELECT id, balance FROM customer_wallets WHERE customer_id = ?", [$sale['customer_id']]);
+            if ($wallet) {
+                $newBalance = (float)$wallet['balance'] + (float)$sale['total'];
+                $db->update('customer_wallets', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$wallet['id']]);
+                $db->insert('customer_wallet_transactions', [
+                    'wallet_id' => $wallet['id'],
+                    'type' => 'credit',
+                    'amount' => $sale['total'],
+                    'balance_after' => $newBalance,
+                    'description' => "Sale #$id voided - refund",
+                    'reference_type' => 'App\Models\Sale',
+                    'reference_id' => $id,
+                    'user_id' => get_user_id(),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
             }
         }
 
-        $db->update('sales', ['status' => 'voided', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->update('sales', ['sale_status' => 'voided', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
         Response::success(null, 'Sale voided');
     }
 
@@ -251,37 +341,48 @@ class SalesController
             Response::error('Items are required', 422);
         }
 
+        if (empty($body['branch_id']) || empty($body['warehouse_id'])) {
+            Response::error('Branch ID and Warehouse ID are required', 422);
+        }
+
         $db = Database::getInstance();
-        $total = 0;
+        $subtotal = 0;
 
         foreach ($body['items'] as $item) {
-            $price = $item['price'] ?? 0;
-            $total += $price * $item['quantity'];
+            $price = $item['unit_price'] ?? 0;
+            $subtotal += $price * $item['quantity'];
         }
 
         $saleId = $db->insert('sales', [
-            'reference_number' => generate_reference('HLD'),
+            'invoice_number' => generate_reference('HLD'),
             'customer_id' => $body['customer_id'] ?? null,
             'user_id' => get_user_id(),
-            'subtotal' => $total,
-            'discount' => $body['discount'] ?? 0,
-            'tax' => $body['tax'] ?? 0,
-            'total' => $total,
+            'branch_id' => $body['branch_id'],
+            'warehouse_id' => $body['warehouse_id'],
+            'subtotal' => $subtotal,
+            'discount_amount' => $body['discount_amount'] ?? 0,
+            'tax_amount' => $body['tax_amount'] ?? 0,
+            'total' => $subtotal,
             'payment_method' => null,
-            'status' => 'held',
+            'sale_status' => 'held',
             'notes' => $body['notes'] ?? null,
+            'sale_date' => date('Y-m-d'),
+            'sale_time' => date('H:i:s'),
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         foreach ($body['items'] as $item) {
-            $price = $item['price'] ?? 0;
+            $price = $item['unit_price'] ?? 0;
             $db->insert('sale_items', [
                 'sale_id' => $saleId,
                 'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
                 'quantity' => $item['quantity'],
-                'price' => $price,
+                'unit_price' => $price,
                 'subtotal' => $price * $item['quantity'],
+                'total' => $price * $item['quantity'],
+                'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
@@ -298,11 +399,12 @@ class SalesController
         $db = Database::getInstance();
 
         $sales = $db->fetchAll(
-            "SELECT s.*, c.name as customer_name, u.name as cashier_name
+            "SELECT s.*, CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+                    CONCAT(u.first_name, ' ', u.last_name) as cashier_name
              FROM sales s
              LEFT JOIN customers c ON c.id = s.customer_id
              LEFT JOIN users u ON u.id = s.user_id
-             WHERE s.status = 'held'
+             WHERE s.sale_status = 'held'
              ORDER BY s.created_at DESC"
         );
 
@@ -314,12 +416,12 @@ class SalesController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $sale = $db->fetch("SELECT id, status FROM sales WHERE id = ?", [$id]);
+        $sale = $db->fetch("SELECT id, sale_status FROM sales WHERE id = ?", [$id]);
         if (!$sale) {
             Response::error('Sale not found', 404);
         }
 
-        if ($sale['status'] !== 'held') {
+        if ($sale['sale_status'] !== 'held') {
             Response::error('Sale is not held', 409);
         }
 
@@ -342,12 +444,12 @@ class SalesController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $sale = $db->fetch("SELECT id, status, customer_id, total FROM sales WHERE id = ?", [$id]);
+        $sale = $db->fetch("SELECT id, sale_status, customer_id, total, warehouse_id FROM sales WHERE id = ?", [$id]);
         if (!$sale) {
             Response::error('Sale not found', 404);
         }
 
-        if ($sale['status'] !== 'completed') {
+        if ($sale['sale_status'] !== 'completed') {
             Response::error('Only completed sales can be returned', 409);
         }
 
@@ -359,44 +461,84 @@ class SalesController
             if (!$product) {
                 Response::error("Product {$item['product_id']} not found", 404);
             }
-            $price = $item['price'] ?? $product['selling_price'];
+            $price = $item['unit_price'] ?? $product['selling_price'];
             $returnTotal += $price * $item['quantity'];
         }
 
+        $returnId = $db->insert('sale_returns', [
+            'return_number' => generate_reference('RET'),
+            'sale_id' => $id,
+            'customer_id' => $sale['customer_id'],
+            'user_id' => get_user_id(),
+            'warehouse_id' => $sale['warehouse_id'],
+            'refund_method' => $body['refund_method'] ?? 'cash',
+            'refund_amount' => $returnTotal,
+            'reason' => $body['reason'] ?? null,
+            'status' => 'completed',
+            'return_date' => date('Y-m-d'),
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
         foreach ($items as $item) {
-            $db->query(
-                "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
-                [$item['quantity'], $item['product_id']]
+            $existingStock = $db->fetch(
+                "SELECT id, quantity FROM product_stocks WHERE product_id = ? AND warehouse_id = ? AND variant_id IS NULL",
+                [$item['product_id'], $sale['warehouse_id']]
             );
+
+            if ($existingStock) {
+                $db->update('product_stocks', [
+                    'quantity' => $existingStock['quantity'] + $item['quantity'],
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$existingStock['id']]);
+            }
+
+            $db->insert('return_items', [
+                'return_id' => $returnId,
+                'sale_item_id' => $item['id'] ?? null,
+                'product_id' => $item['product_id'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['unit_price'] ?? 0,
+                'subtotal' => ($item['unit_price'] ?? 0) * $item['quantity'],
+                'reason' => $item['reason'] ?? null,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+
             $db->insert('stock_movements', [
                 'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
+                'warehouse_id' => $sale['warehouse_id'],
                 'type' => 'return',
                 'quantity' => $item['quantity'],
-                'reference' => $id,
+                'reference_type' => 'App\Models\SaleReturn',
+                'reference_id' => $returnId,
                 'notes' => "Sale #$id returned",
+                'user_id' => get_user_id(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
-        if ($sale['customer_id']) {
-            $customer = $db->fetch("SELECT wallet_balance FROM customers WHERE id = ?", [$sale['customer_id']]);
-            if ($customer) {
-                $newBalance = (float)$customer['wallet_balance'] + $returnTotal;
-                $db->update('customers', ['wallet_balance' => $newBalance], 'id = ?', [$sale['customer_id']]);
-                $db->insert('wallet_transactions', [
-                    'customer_id' => $sale['customer_id'],
-                    'type' => 'topup',
+        if ($sale['customer_id'] && ($body['refund_method'] ?? '') === 'wallet') {
+            $wallet = $db->fetch("SELECT id, balance FROM customer_wallets WHERE customer_id = ?", [$sale['customer_id']]);
+            if ($wallet) {
+                $newBalance = (float)$wallet['balance'] + $returnTotal;
+                $db->update('customer_wallets', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$wallet['id']]);
+                $db->insert('customer_wallet_transactions', [
+                    'wallet_id' => $wallet['id'],
+                    'type' => 'credit',
                     'amount' => $returnTotal,
                     'balance_after' => $newBalance,
                     'description' => "Sale #$id return refund",
-                    'reference' => generate_reference('WLT'),
+                    'reference_type' => 'App\Models\SaleReturn',
+                    'reference_id' => $returnId,
+                    'user_id' => get_user_id(),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
         }
 
-        $db->update('sales', ['status' => 'returned', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
-        Response::success(null, 'Sale returned');
+        $db->update('sales', ['sale_status' => 'returned', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        Response::success(['return_id' => $returnId], 'Sale returned');
     }
 
     public function receipt(string $id): void
@@ -405,7 +547,8 @@ class SalesController
         $db = Database::getInstance();
 
         $sale = $db->fetch(
-            "SELECT s.*, c.name as customer_name, c.phone as customer_phone, u.name as cashier_name
+            "SELECT s.*, CONCAT(c.first_name, ' ', c.last_name) as customer_name, c.phone as customer_phone,
+                    CONCAT(u.first_name, ' ', u.last_name) as cashier_name
              FROM sales s
              LEFT JOIN customers c ON c.id = s.customer_id
              LEFT JOIN users u ON u.id = s.user_id
@@ -424,7 +567,7 @@ class SalesController
             [$id]
         );
 
-        $company = $db->fetch("SELECT * FROM company_settings LIMIT 1");
+        $company = $db->fetch("SELECT * FROM company LIMIT 1");
 
         $sale['items'] = $items;
         $sale['company'] = $company;

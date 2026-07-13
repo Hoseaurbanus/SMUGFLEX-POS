@@ -18,50 +18,55 @@ class DashboardController
         $monthEnd = date('Y-m-t');
 
         $todaySales = $db->fetch(
-            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(created_at) = ? AND status = 'completed'",
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(sale_date) = ? AND sale_status = 'completed'",
             [$today]
         );
 
         $monthlySales = $db->fetch(
-            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE created_at BETWEEN ? AND ? AND status = 'completed'",
-            [$monthStart . ' 00:00:00', $monthEnd . ' 23:59:59']
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date BETWEEN ? AND ? AND sale_status = 'completed'",
+            [$monthStart, $monthEnd]
         );
 
         $monthlyExpenses = $db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE DATE(created_at) BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE expense_date BETWEEN ? AND ?",
             [$monthStart, $monthEnd]
         );
 
         $todaySalesCount = $db->fetch(
-            "SELECT COUNT(*) as cnt FROM sales WHERE DATE(created_at) = ? AND status = 'completed'",
+            "SELECT COUNT(*) as cnt FROM sales WHERE DATE(sale_date) = ? AND sale_status = 'completed'",
             [$today]
         );
 
         $monthlySalesCount = $db->fetch(
-            "SELECT COUNT(*) as cnt FROM sales WHERE created_at BETWEEN ? AND ? AND status = 'completed'",
-            [$monthStart . ' 00:00:00', $monthEnd . ' 23:59:59']
+            "SELECT COUNT(*) as cnt FROM sales WHERE sale_date BETWEEN ? AND ? AND sale_status = 'completed'",
+            [$monthStart, $monthEnd]
         );
 
-        $customerCount = $db->fetch("SELECT COUNT(*) as cnt FROM customers WHERE is_deleted = 0");
-        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE is_deleted = 0");
-        $supplierCount = $db->fetch("SELECT COUNT(*) as cnt FROM suppliers WHERE is_deleted = 0");
+        $customerCount = $db->fetch("SELECT COUNT(*) as cnt FROM customers WHERE deleted_at IS NULL");
+        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE deleted_at IS NULL");
+        $supplierCount = $db->fetch("SELECT COUNT(*) as cnt FROM suppliers WHERE deleted_at IS NULL");
 
         $lowStock = $db->fetchAll(
-            "SELECT id, name, sku, stock_quantity, minimum_stock FROM products WHERE stock_quantity <= minimum_stock AND is_deleted = 0 ORDER BY stock_quantity ASC LIMIT 10"
+            "SELECT p.id, p.name, p.sku, (SELECT COALESCE(SUM(ps.quantity), 0) FROM product_stocks ps WHERE ps.product_id = p.id) as stock_quantity, p.minimum_stock
+             FROM products p
+             WHERE p.deleted_at IS NULL AND p.status = 'active'
+             HAVING stock_quantity <= p.minimum_stock
+             ORDER BY stock_quantity ASC LIMIT 10"
         );
 
         $recentSales = $db->fetchAll(
-            "SELECT s.id, s.reference_number, s.total, s.payment_method, s.created_at, c.name as customer_name
+            "SELECT s.id, s.invoice_number, s.total, s.payment_method, s.sale_date,
+                    CONCAT(c.first_name, ' ', c.last_name) as customer_name
              FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-             WHERE s.status = 'completed'
+             WHERE s.sale_status = 'completed'
              ORDER BY s.created_at DESC LIMIT 10"
         );
 
         $topProducts = $db->fetchAll(
             "SELECT p.id, p.name, p.sku, SUM(si.quantity) as sold, SUM(si.subtotal) as revenue
              FROM sale_items si JOIN products p ON p.id = si.product_id
-             JOIN sales s ON s.id = si.sale_id AND s.status = 'completed'
-             WHERE DATE(s.created_at) BETWEEN ? AND ?
+             JOIN sales s ON s.id = si.sale_id AND s.sale_status = 'completed'
+             WHERE DATE(s.sale_date) BETWEEN ? AND ?
              GROUP BY p.id ORDER BY sold DESC LIMIT 10",
             [$monthStart, $monthEnd]
         );
@@ -90,9 +95,9 @@ class DashboardController
         $db = Database::getInstance();
 
         $data = $db->fetchAll(
-            "SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as total, COUNT(*) as count
-             FROM sales WHERE status = 'completed' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-             GROUP BY DATE(created_at) ORDER BY date ASC"
+            "SELECT DATE(sale_date) as date, COALESCE(SUM(total), 0) as total, COUNT(*) as count
+             FROM sales WHERE sale_status = 'completed' AND sale_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+             GROUP BY DATE(sale_date) ORDER BY date ASC"
         );
 
         Response::success($data);
@@ -104,15 +109,15 @@ class DashboardController
         $db = Database::getInstance();
 
         $sales = $db->fetchAll(
-            "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COALESCE(SUM(total), 0) as total
-             FROM sales WHERE status = 'completed' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-             GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month ASC"
+            "SELECT DATE_FORMAT(sale_date, '%Y-%m') as month, COALESCE(SUM(total), 0) as total
+             FROM sales WHERE sale_status = 'completed' AND sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+             GROUP BY DATE_FORMAT(sale_date, '%Y-%m') ORDER BY month ASC"
         );
 
         $expenses = $db->fetchAll(
-            "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COALESCE(SUM(amount), 0) as total
-             FROM expenses WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-             GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month ASC"
+            "SELECT DATE_FORMAT(expense_date, '%Y-%m') as month, COALESCE(SUM(amount), 0) as total
+             FROM expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+             GROUP BY DATE_FORMAT(expense_date, '%Y-%m') ORDER BY month ASC"
         );
 
         $expenseMap = [];

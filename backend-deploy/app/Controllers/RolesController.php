@@ -15,7 +15,7 @@ class RolesController
         $db = Database::getInstance();
 
         $roles = $db->fetchAll(
-            "SELECT r.*, (SELECT COUNT(*) FROM users WHERE role_id = r.id AND is_deleted = 0) as user_count
+            "SELECT r.*, (SELECT COUNT(*) FROM users WHERE role_id = r.id AND deleted_at IS NULL) as user_count
              FROM roles r ORDER BY r.name ASC"
         );
 
@@ -39,7 +39,9 @@ class RolesController
 
         $roleId = $db->insert('roles', [
             'name' => $body['name'],
+            'slug' => $body['slug'] ?? strtolower(str_replace(' ', '_', $body['name'])),
             'description' => $body['description'] ?? null,
+            'is_system' => $body['is_system'] ?? 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -54,9 +56,13 @@ class RolesController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $role = $db->fetch("SELECT id FROM roles WHERE id = ?", [$id]);
+        $role = $db->fetch("SELECT id, is_system FROM roles WHERE id = ?", [$id]);
         if (!$role) {
             Response::error('Role not found', 404);
+        }
+
+        if ($role['is_system']) {
+            Response::error('Cannot modify system role', 403);
         }
 
         if (!empty($body['name'])) {
@@ -68,6 +74,7 @@ class RolesController
 
         $updateData = [];
         if (isset($body['name'])) $updateData['name'] = $body['name'];
+        if (isset($body['slug'])) $updateData['slug'] = $body['slug'];
         if (isset($body['description'])) $updateData['description'] = $body['description'];
 
         if (empty($updateData)) {
@@ -86,16 +93,16 @@ class RolesController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $role = $db->fetch("SELECT id, name FROM roles WHERE id = ?", [$id]);
+        $role = $db->fetch("SELECT id, name, is_system FROM roles WHERE id = ?", [$id]);
         if (!$role) {
             Response::error('Role not found', 404);
         }
 
-        if ($role['name'] === 'super_admin') {
-            Response::error('Cannot delete super admin role', 403);
+        if ($role['is_system']) {
+            Response::error('Cannot delete system role', 403);
         }
 
-        $userCount = $db->fetch("SELECT COUNT(*) as cnt FROM users WHERE role_id = ? AND is_deleted = 0", [$id]);
+        $userCount = $db->fetch("SELECT COUNT(*) as cnt FROM users WHERE role_id = ? AND deleted_at IS NULL", [$id]);
         if ((int)$userCount['cnt'] > 0) {
             Response::error('Cannot delete role with assigned users', 409);
         }
@@ -128,6 +135,7 @@ class RolesController
                 $db->insert('role_permissions', [
                     'role_id' => $id,
                     'permission_id' => $permId,
+                    'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
         }

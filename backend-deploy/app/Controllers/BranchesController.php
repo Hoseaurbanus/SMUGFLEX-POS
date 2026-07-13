@@ -15,8 +15,8 @@ class BranchesController
         $db = Database::getInstance();
 
         $branches = $db->fetchAll(
-            "SELECT b.*, (SELECT COUNT(*) FROM users WHERE branch_id = b.id AND is_deleted = 0) as user_count
-             FROM branches b WHERE b.is_deleted = 0 ORDER BY b.name ASC"
+            "SELECT b.*, (SELECT COUNT(*) FROM users WHERE branch_id = b.id AND deleted_at IS NULL) as user_count
+             FROM branches b ORDER BY b.name ASC"
         );
 
         Response::success($branches);
@@ -27,20 +27,25 @@ class BranchesController
         AuthMiddleware::authenticate();
         $body = Request::getBody();
 
-        if (!$body || empty($body['name'])) {
-            Response::error('Branch name is required', 422);
+        if (!$body || empty($body['name']) || empty($body['code'])) {
+            Response::error('Branch name and code are required', 422);
         }
 
         $db = Database::getInstance();
 
-        if ($db->fetch("SELECT id FROM branches WHERE name = ? AND is_deleted = 0", [$body['name']])) {
-            Response::error('Branch name already exists', 409);
+        if ($db->fetch("SELECT id FROM branches WHERE code = ?", [$body['code']])) {
+            Response::error('Branch code already exists', 409);
         }
 
         $branchId = $db->insert('branches', [
             'name' => $body['name'],
+            'code' => $body['code'],
             'address' => $body['address'] ?? null,
+            'city' => $body['city'] ?? null,
+            'state' => $body['state'] ?? null,
+            'country' => $body['country'] ?? null,
             'phone' => $body['phone'] ?? null,
+            'email' => $body['email'] ?? null,
             'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
@@ -56,22 +61,27 @@ class BranchesController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $branch = $db->fetch("SELECT id FROM branches WHERE id = ? AND is_deleted = 0", [$id]);
+        $branch = $db->fetch("SELECT id FROM branches WHERE id = ?", [$id]);
         if (!$branch) {
             Response::error('Branch not found', 404);
         }
 
-        if (!empty($body['name'])) {
-            $exists = $db->fetch("SELECT id FROM branches WHERE name = ? AND id != ? AND is_deleted = 0", [$body['name'], $id]);
+        if (!empty($body['code'])) {
+            $exists = $db->fetch("SELECT id FROM branches WHERE code = ? AND id != ?", [$body['code'], $id]);
             if ($exists) {
-                Response::error('Branch name already exists', 409);
+                Response::error('Branch code already exists', 409);
             }
         }
 
         $updateData = [];
         if (isset($body['name'])) $updateData['name'] = $body['name'];
+        if (isset($body['code'])) $updateData['code'] = $body['code'];
         if (isset($body['address'])) $updateData['address'] = $body['address'];
+        if (isset($body['city'])) $updateData['city'] = $body['city'];
+        if (isset($body['state'])) $updateData['state'] = $body['state'];
+        if (isset($body['country'])) $updateData['country'] = $body['country'];
         if (isset($body['phone'])) $updateData['phone'] = $body['phone'];
+        if (isset($body['email'])) $updateData['email'] = $body['email'];
         if (isset($body['is_active'])) $updateData['is_active'] = $body['is_active'];
 
         if (empty($updateData)) {
@@ -90,17 +100,17 @@ class BranchesController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $branch = $db->fetch("SELECT id FROM branches WHERE id = ? AND is_deleted = 0", [$id]);
+        $branch = $db->fetch("SELECT id FROM branches WHERE id = ?", [$id]);
         if (!$branch) {
             Response::error('Branch not found', 404);
         }
 
-        $userCount = $db->fetch("SELECT COUNT(*) as cnt FROM users WHERE branch_id = ? AND is_deleted = 0", [$id]);
+        $userCount = $db->fetch("SELECT COUNT(*) as cnt FROM users WHERE branch_id = ? AND deleted_at IS NULL", [$id]);
         if ((int)$userCount['cnt'] > 0) {
             Response::error('Cannot delete branch with users', 409);
         }
 
-        $db->update('branches', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->delete('branches', 'id = ?', [$id]);
         Response::success(null, 'Branch deleted');
     }
 }

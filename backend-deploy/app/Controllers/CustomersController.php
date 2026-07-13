@@ -18,19 +18,24 @@ class CustomersController
         $perPage = max(1, min(100, (int)($params['per_page'] ?? 20)));
         $offset = ($page - 1) * $perPage;
 
-        $where = "is_deleted = 0";
+        $where = "c.deleted_at IS NULL";
         $queryParams = [];
 
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)";
+            $where .= " AND (CONCAT(c.first_name, ' ', c.last_name) LIKE ? OR c.email LIKE ? OR c.phone LIKE ?)";
             $queryParams = array_merge($queryParams, [$search, $search, $search]);
         }
 
-        $total = $db->fetch("SELECT COUNT(*) as cnt FROM customers WHERE $where", $queryParams)['cnt'];
+        $total = $db->fetch("SELECT COUNT(*) as cnt FROM customers c WHERE $where", $queryParams)['cnt'];
 
         $customers = $db->fetchAll(
-            "SELECT * FROM customers WHERE $where ORDER BY created_at DESC LIMIT $perPage OFFSET $offset",
+            "SELECT c.*, cw.balance as wallet_balance
+             FROM customers c
+             LEFT JOIN customer_wallets cw ON cw.customer_id = c.id
+             WHERE $where
+             ORDER BY c.created_at DESC
+             LIMIT $perPage OFFSET $offset",
             $queryParams
         );
 
@@ -42,23 +47,42 @@ class CustomersController
         AuthMiddleware::authenticate();
         $body = Request::getBody();
 
-        if (!$body || empty($body['name'])) {
-            Response::error('Customer name is required', 422);
+        if (!$body || empty($body['first_name'])) {
+            Response::error('Customer first name is required', 422);
         }
 
         $db = Database::getInstance();
 
         $customerId = $db->insert('customers', [
-            'name' => $body['name'],
+            'first_name' => $body['first_name'],
+            'last_name' => $body['last_name'] ?? '',
             'email' => $body['email'] ?? null,
             'phone' => $body['phone'] ?? null,
             'address' => $body['address'] ?? null,
-            'wallet_balance' => $body['wallet_balance'] ?? 0,
+            'city' => $body['city'] ?? null,
+            'state' => $body['state'] ?? null,
+            'country' => $body['country'] ?? null,
+            'tax_number' => $body['tax_number'] ?? null,
+            'credit_limit' => $body['credit_limit'] ?? 0,
+            'outstanding_balance' => $body['outstanding_balance'] ?? 0,
+            'reward_points' => $body['reward_points'] ?? 0,
+            'notes' => $body['notes'] ?? null,
+            'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $customer = $db->fetch("SELECT * FROM customers WHERE id = ?", [$customerId]);
+        $db->insert('customer_wallets', [
+            'customer_id' => $customerId,
+            'balance' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $customer = $db->fetch(
+            "SELECT c.*, cw.balance as wallet_balance FROM customers c LEFT JOIN customer_wallets cw ON cw.customer_id = c.id WHERE c.id = ?",
+            [$customerId]
+        );
         Response::success($customer, 'Customer created', 201);
     }
 
@@ -67,7 +91,14 @@ class CustomersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $customer = $db->fetch("SELECT * FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch(
+            "SELECT c.*, cw.balance as wallet_balance
+             FROM customers c
+             LEFT JOIN customer_wallets cw ON cw.customer_id = c.id
+             WHERE c.id = ? AND c.deleted_at IS NULL",
+            [$id]
+        );
+
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
@@ -81,13 +112,14 @@ class CustomersController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
         $updateData = [];
-        $fields = ['name', 'email', 'phone', 'address'];
+        $fields = ['first_name', 'last_name', 'email', 'phone', 'address', 'city', 'state', 'country',
+                    'tax_number', 'credit_limit', 'outstanding_balance', 'reward_points', 'notes', 'is_active'];
         foreach ($fields as $field) {
             if (array_key_exists($field, $body)) {
                 $updateData[$field] = $body[$field];
@@ -101,7 +133,10 @@ class CustomersController
         $updateData['updated_at'] = date('Y-m-d H:i:s');
         $db->update('customers', $updateData, 'id = ?', [$id]);
 
-        $customer = $db->fetch("SELECT * FROM customers WHERE id = ?", [$id]);
+        $customer = $db->fetch(
+            "SELECT c.*, cw.balance as wallet_balance FROM customers c LEFT JOIN customer_wallets cw ON cw.customer_id = c.id WHERE c.id = ?",
+            [$id]
+        );
         Response::success($customer, 'Customer updated');
     }
 
@@ -110,12 +145,12 @@ class CustomersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
-        $db->update('customers', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->update('customers', ['deleted_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
         Response::success(null, 'Customer deleted');
     }
 
@@ -124,15 +159,25 @@ class CustomersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $customer = $db->fetch("SELECT id, name, wallet_balance FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch(
+            "SELECT c.id, CONCAT(c.first_name, ' ', c.last_name) as name, cw.balance as wallet_balance
+             FROM customers c
+             LEFT JOIN customer_wallets cw ON cw.customer_id = c.id
+             WHERE c.id = ? AND c.deleted_at IS NULL",
+            [$id]
+        );
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
-        $transactions = $db->fetchAll(
-            "SELECT * FROM wallet_transactions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50",
-            [$id]
-        );
+        $wallet = $db->fetch("SELECT id FROM customer_wallets WHERE customer_id = ?", [$id]);
+        $transactions = [];
+        if ($wallet) {
+            $transactions = $db->fetchAll(
+                "SELECT * FROM customer_wallet_transactions WHERE wallet_id = ? ORDER BY created_at DESC LIMIT 50",
+                [$wallet['id']]
+            );
+        }
 
         Response::success([
             'balance' => (float)$customer['wallet_balance'],
@@ -152,21 +197,34 @@ class CustomersController
         $db = Database::getInstance();
         $amount = (float)$body['amount'];
 
-        $customer = $db->fetch("SELECT id, wallet_balance FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
-        $newBalance = (float)$customer['wallet_balance'] + $amount;
-        $db->update('customers', ['wallet_balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $wallet = $db->fetch("SELECT id, balance FROM customer_wallets WHERE customer_id = ?", [$id]);
+        if (!$wallet) {
+            $walletId = $db->insert('customer_wallets', [
+                'customer_id' => $id,
+                'balance' => 0,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $wallet = ['id' => $walletId, 'balance' => 0];
+        }
 
-        $db->insert('wallet_transactions', [
-            'customer_id' => $id,
-            'type' => 'topup',
+        $newBalance = (float)$wallet['balance'] + $amount;
+        $db->update('customer_wallets', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$wallet['id']]);
+
+        $db->insert('customer_wallet_transactions', [
+            'wallet_id' => $wallet['id'],
+            'type' => 'credit',
             'amount' => $amount,
             'balance_after' => $newBalance,
             'description' => $body['description'] ?? 'Wallet top-up',
-            'reference' => generate_reference('WLT'),
+            'reference_type' => null,
+            'reference_id' => null,
+            'user_id' => get_user_id(),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -185,25 +243,32 @@ class CustomersController
         $db = Database::getInstance();
         $amount = (float)$body['amount'];
 
-        $customer = $db->fetch("SELECT id, wallet_balance FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
-        if ((float)$customer['wallet_balance'] < $amount) {
+        $wallet = $db->fetch("SELECT id, balance FROM customer_wallets WHERE customer_id = ?", [$id]);
+        if (!$wallet) {
+            Response::error('Customer wallet not found', 404);
+        }
+
+        if ((float)$wallet['balance'] < $amount) {
             Response::error('Insufficient wallet balance', 400);
         }
 
-        $newBalance = (float)$customer['wallet_balance'] - $amount;
-        $db->update('customers', ['wallet_balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $newBalance = (float)$wallet['balance'] - $amount;
+        $db->update('customer_wallets', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$wallet['id']]);
 
-        $db->insert('wallet_transactions', [
-            'customer_id' => $id,
-            'type' => 'deduction',
-            'amount' => -$amount,
+        $db->insert('customer_wallet_transactions', [
+            'wallet_id' => $wallet['id'],
+            'type' => 'debit',
+            'amount' => $amount,
             'balance_after' => $newBalance,
             'description' => $body['description'] ?? 'Wallet deduction',
-            'reference' => generate_reference('WLT'),
+            'reference_type' => null,
+            'reference_id' => null,
+            'user_id' => get_user_id(),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -216,33 +281,43 @@ class CustomersController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $customer = $db->fetch("SELECT id, name, wallet_balance FROM customers WHERE id = ? AND is_deleted = 0", [$id]);
+        $customer = $db->fetch(
+            "SELECT c.id, CONCAT(c.first_name, ' ', c.last_name) as name, cw.balance as wallet_balance
+             FROM customers c
+             LEFT JOIN customer_wallets cw ON cw.customer_id = c.id
+             WHERE c.id = ? AND c.deleted_at IS NULL",
+            [$id]
+        );
         if (!$customer) {
             Response::error('Customer not found', 404);
         }
 
-        $where = "customer_id = ?";
+        $where = "s.customer_id = ?";
         $queryParams = [$id];
 
         if (!empty($params['from_date'])) {
-            $where .= " AND created_at >= ?";
+            $where .= " AND s.created_at >= ?";
             $queryParams[] = $params['from_date'] . ' 00:00:00';
         }
         if (!empty($params['to_date'])) {
-            $where .= " AND created_at <= ?";
+            $where .= " AND s.created_at <= ?";
             $queryParams[] = $params['to_date'] . ' 23:59:59';
         }
 
         $sales = $db->fetchAll(
-            "SELECT id, reference_number, total, payment_method, status, created_at
-             FROM sales WHERE $where ORDER BY created_at DESC",
+            "SELECT id, invoice_number, total, payment_method, sale_status, created_at
+             FROM sales s WHERE $where ORDER BY created_at DESC",
             $queryParams
         );
 
-        $walletTransactions = $db->fetchAll(
-            "SELECT * FROM wallet_transactions WHERE customer_id = ? ORDER BY created_at DESC",
-            [$id]
-        );
+        $wallet = $db->fetch("SELECT id FROM customer_wallets WHERE customer_id = ?", [$id]);
+        $walletTransactions = [];
+        if ($wallet) {
+            $walletTransactions = $db->fetchAll(
+                "SELECT * FROM customer_wallet_transactions WHERE wallet_id = ? ORDER BY created_at DESC",
+                [$wallet['id']]
+            );
+        }
 
         Response::success([
             'customer' => $customer,

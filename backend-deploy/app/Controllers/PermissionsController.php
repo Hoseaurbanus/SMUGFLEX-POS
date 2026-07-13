@@ -13,7 +13,7 @@ class PermissionsController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $permissions = $db->fetchAll("SELECT * FROM permissions ORDER BY name ASC");
+        $permissions = $db->fetchAll("SELECT * FROM permissions ORDER BY module ASC, name ASC");
         Response::success($permissions);
     }
 }

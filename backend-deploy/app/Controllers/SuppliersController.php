@@ -18,19 +18,22 @@ class SuppliersController
         $perPage = max(1, min(100, (int)($params['per_page'] ?? 20)));
         $offset = ($page - 1) * $perPage;
 
-        $where = "is_deleted = 0";
+        $where = "s.deleted_at IS NULL";
         $queryParams = [];
 
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)";
-            $queryParams = array_merge($queryParams, [$search, $search, $search]);
+            $where .= " AND (s.name LIKE ? OR s.contact_person LIKE ? OR s.email LIKE ? OR s.phone LIKE ?)";
+            $queryParams = array_merge($queryParams, [$search, $search, $search, $search]);
         }
 
-        $total = $db->fetch("SELECT COUNT(*) as cnt FROM suppliers WHERE $where", $queryParams)['cnt'];
+        $total = $db->fetch("SELECT COUNT(*) as cnt FROM suppliers s WHERE $where", $queryParams)['cnt'];
 
         $suppliers = $db->fetchAll(
-            "SELECT * FROM suppliers WHERE $where ORDER BY created_at DESC LIMIT $perPage OFFSET $offset",
+            "SELECT s.* FROM suppliers s
+             WHERE $where
+             ORDER BY s.created_at DESC
+             LIMIT $perPage OFFSET $offset",
             $queryParams
         );
 
@@ -50,11 +53,20 @@ class SuppliersController
 
         $supplierId = $db->insert('suppliers', [
             'name' => $body['name'],
+            'contact_person' => $body['contact_person'] ?? null,
             'email' => $body['email'] ?? null,
             'phone' => $body['phone'] ?? null,
             'address' => $body['address'] ?? null,
-            'company' => $body['company'] ?? null,
-            'balance' => $body['balance'] ?? 0,
+            'city' => $body['city'] ?? null,
+            'state' => $body['state'] ?? null,
+            'country' => $body['country'] ?? null,
+            'tax_number' => $body['tax_number'] ?? null,
+            'bank_name' => $body['bank_name'] ?? null,
+            'bank_account_number' => $body['bank_account_number'] ?? null,
+            'bank_account_name' => $body['bank_account_name'] ?? null,
+            'outstanding_balance' => $body['outstanding_balance'] ?? 0,
+            'notes' => $body['notes'] ?? null,
+            'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -68,7 +80,7 @@ class SuppliersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $supplier = $db->fetch("SELECT * FROM suppliers WHERE id = ? AND is_deleted = 0", [$id]);
+        $supplier = $db->fetch("SELECT * FROM suppliers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$supplier) {
             Response::error('Supplier not found', 404);
         }
@@ -82,13 +94,15 @@ class SuppliersController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $supplier = $db->fetch("SELECT id FROM suppliers WHERE id = ? AND is_deleted = 0", [$id]);
+        $supplier = $db->fetch("SELECT id FROM suppliers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$supplier) {
             Response::error('Supplier not found', 404);
         }
 
         $updateData = [];
-        $fields = ['name', 'email', 'phone', 'address', 'company'];
+        $fields = ['name', 'contact_person', 'email', 'phone', 'address', 'city', 'state', 'country',
+                    'tax_number', 'bank_name', 'bank_account_number', 'bank_account_name',
+                    'outstanding_balance', 'notes', 'is_active'];
         foreach ($fields as $field) {
             if (array_key_exists($field, $body)) {
                 $updateData[$field] = $body[$field];
@@ -111,12 +125,12 @@ class SuppliersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $supplier = $db->fetch("SELECT id FROM suppliers WHERE id = ? AND is_deleted = 0", [$id]);
+        $supplier = $db->fetch("SELECT id FROM suppliers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$supplier) {
             Response::error('Supplier not found', 404);
         }
 
-        $db->update('suppliers', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->update('suppliers', ['deleted_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
         Response::success(null, 'Supplier deleted');
     }
 
@@ -125,18 +139,22 @@ class SuppliersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $supplier = $db->fetch("SELECT * FROM suppliers WHERE id = ? AND is_deleted = 0", [$id]);
+        $supplier = $db->fetch("SELECT * FROM suppliers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$supplier) {
             Response::error('Supplier not found', 404);
         }
 
         $purchases = $db->fetchAll(
-            "SELECT id, reference_number, total, status, created_at FROM purchases WHERE supplier_id = ? ORDER BY created_at DESC",
+            "SELECT id, reference_number, total, status, purchase_status, created_at FROM purchases WHERE supplier_id = ? ORDER BY created_at DESC",
             [$id]
         );
 
         $payments = $db->fetchAll(
-            "SELECT * FROM supplier_payments WHERE supplier_id = ? ORDER BY created_at DESC",
+            "SELECT pp.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
+             FROM purchase_payments pp
+             LEFT JOIN users u ON u.id = pp.user_id
+             WHERE pp.purchase_id IN (SELECT id FROM purchases WHERE supplier_id = ?)
+             ORDER BY pp.created_at DESC",
             [$id]
         );
 
@@ -159,23 +177,27 @@ class SuppliersController
         $db = Database::getInstance();
         $amount = (float)$body['amount'];
 
-        $supplier = $db->fetch("SELECT id, balance FROM suppliers WHERE id = ? AND is_deleted = 0", [$id]);
+        $supplier = $db->fetch("SELECT id, outstanding_balance FROM suppliers WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$supplier) {
             Response::error('Supplier not found', 404);
         }
 
-        $newBalance = (float)$supplier['balance'] - $amount;
-        $db->update('suppliers', ['balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $newBalance = (float)$supplier['outstanding_balance'] - $amount;
+        $db->update('suppliers', ['outstanding_balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
 
-        $db->insert('supplier_payments', [
-            'supplier_id' => $id,
-            'amount' => $amount,
-            'payment_method' => $body['payment_method'] ?? 'cash',
-            'reference' => $body['reference'] ?? generate_reference('SUP'),
-            'notes' => $body['notes'] ?? null,
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        if (!empty($body['purchase_id'])) {
+            $db->insert('purchase_payments', [
+                'purchase_id' => $body['purchase_id'],
+                'amount' => $amount,
+                'payment_method' => $body['payment_method'] ?? 'cash',
+                'reference' => $body['reference'] ?? null,
+                'notes' => $body['notes'] ?? null,
+                'payment_date' => date('Y-m-d H:i:s'),
+                'user_id' => get_user_id(),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
-        Response::success(['balance' => $newBalance], 'Payment recorded');
+        Response::success(['outstanding_balance' => $newBalance], 'Payment recorded');
     }
 }

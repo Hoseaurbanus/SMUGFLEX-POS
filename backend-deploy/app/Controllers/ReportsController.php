@@ -18,37 +18,42 @@ class ReportsController
 
         $sales = $db->fetch(
             "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total,
-                    COALESCE(SUM(discount), 0) as discounts, COALESCE(SUM(tax), 0) as taxes
-             FROM sales WHERE DATE(created_at) = ? AND status = 'completed'",
+                    COALESCE(SUM(discount_amount), 0) as discounts, COALESCE(SUM(tax_amount), 0) as taxes
+             FROM sales WHERE sale_date = ? AND sale_status = 'completed'",
             [$date]
         );
 
         $expenses = $db->fetch(
             "SELECT COALESCE(SUM(amount), 0) as total
-             FROM expenses WHERE DATE(created_at) = ?",
+             FROM expenses WHERE expense_date = ? AND deleted_at IS NULL",
             [$date]
         );
 
         $cashSales = $db->fetch(
-            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(created_at) = ? AND payment_method = 'cash' AND status = 'completed'",
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = ? AND payment_method = 'cash' AND sale_status = 'completed'",
             [$date]
         );
 
         $cardSales = $db->fetch(
-            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(created_at) = ? AND payment_method = 'card' AND status = 'completed'",
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = ? AND payment_method = 'card' AND sale_status = 'completed'",
             [$date]
         );
 
         $walletSales = $db->fetch(
-            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE DATE(created_at) = ? AND payment_method = 'wallet' AND status = 'completed'",
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = ? AND payment_method = 'wallet' AND sale_status = 'completed'",
+            [$date]
+        );
+
+        $transferSales = $db->fetch(
+            "SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE sale_date = ? AND payment_method = 'transfer' AND sale_status = 'completed'",
             [$date]
         );
 
         $topProducts = $db->fetchAll(
             "SELECT p.id, p.name, SUM(si.quantity) as sold, SUM(si.subtotal) as revenue
              FROM sale_items si JOIN products p ON p.id = si.product_id
-             JOIN sales s ON s.id = si.sale_id AND s.status = 'completed'
-             WHERE DATE(s.created_at) = ?
+             JOIN sales s ON s.id = si.sale_id AND s.sale_status = 'completed'
+             WHERE s.sale_date = ?
              GROUP BY p.id ORDER BY sold DESC LIMIT 10",
             [$date]
         );
@@ -64,6 +69,7 @@ class ReportsController
             'cash_sales' => (float)$cashSales['total'],
             'card_sales' => (float)$cardSales['total'],
             'wallet_sales' => (float)$walletSales['total'],
+            'transfer_sales' => (float)$transferSales['total'],
             'top_products' => $topProducts,
         ]);
     }
@@ -78,17 +84,17 @@ class ReportsController
         $endDate = $params['end_date'] ?? date('Y-m-d');
 
         $dailyData = $db->fetchAll(
-            "SELECT DATE(created_at) as date,
+            "SELECT sale_date as date,
                     COUNT(*) as count, COALESCE(SUM(total), 0) as total
-             FROM sales WHERE DATE(created_at) BETWEEN ? AND ? AND status = 'completed'
-             GROUP BY DATE(created_at) ORDER BY date ASC",
+             FROM sales WHERE sale_date BETWEEN ? AND ? AND sale_status = 'completed'
+             GROUP BY sale_date ORDER BY date ASC",
             [$startDate, $endDate]
         );
 
         $expenses = $db->fetchAll(
-            "SELECT DATE(created_at) as date, COALESCE(SUM(amount), 0) as total
-             FROM expenses WHERE DATE(created_at) BETWEEN ? AND ?
-             GROUP BY DATE(created_at) ORDER BY date ASC",
+            "SELECT expense_date as date, COALESCE(SUM(amount), 0) as total
+             FROM expenses WHERE expense_date BETWEEN ? AND ? AND deleted_at IS NULL
+             GROUP BY expense_date ORDER BY date ASC",
             [$startDate, $endDate]
         );
 
@@ -127,15 +133,15 @@ class ReportsController
         $endDate = date('Y-m-t', strtotime($startDate));
 
         $dailyData = $db->fetchAll(
-            "SELECT DATE(created_at) as date,
+            "SELECT sale_date as date,
                     COUNT(*) as count, COALESCE(SUM(total), 0) as total
-             FROM sales WHERE DATE(created_at) BETWEEN ? AND ? AND status = 'completed'
-             GROUP BY DATE(created_at) ORDER BY date ASC",
+             FROM sales WHERE sale_date BETWEEN ? AND ? AND sale_status = 'completed'
+             GROUP BY sale_date ORDER BY date ASC",
             [$startDate, $endDate]
         );
 
         $expenses = $db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE DATE(created_at) BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE expense_date BETWEEN ? AND ? AND deleted_at IS NULL",
             [$startDate, $endDate]
         );
 
@@ -159,17 +165,17 @@ class ReportsController
         $year = $params['year'] ?? date('Y');
 
         $monthlySales = $db->fetchAll(
-            "SELECT DATE_FORMAT(created_at, '%m') as month,
+            "SELECT DATE_FORMAT(sale_date, '%m') as month,
                     COUNT(*) as count, COALESCE(SUM(total), 0) as total
-             FROM sales WHERE YEAR(created_at) = ? AND status = 'completed'
-             GROUP BY DATE_FORMAT(created_at, '%m') ORDER BY month ASC",
+             FROM sales WHERE YEAR(sale_date) = ? AND sale_status = 'completed'
+             GROUP BY DATE_FORMAT(sale_date, '%m') ORDER BY month ASC",
             [$year]
         );
 
         $monthlyExpenses = $db->fetchAll(
-            "SELECT DATE_FORMAT(created_at, '%m') as month, COALESCE(SUM(amount), 0) as total
-             FROM expenses WHERE YEAR(created_at) = ?
-             GROUP BY DATE_FORMAT(created_at, '%m') ORDER BY month ASC",
+            "SELECT DATE_FORMAT(expense_date, '%m') as month, COALESCE(SUM(amount), 0) as total
+             FROM expenses WHERE YEAR(expense_date) = ? AND deleted_at IS NULL
+             GROUP BY DATE_FORMAT(expense_date, '%m') ORDER BY month ASC",
             [$year]
         );
 
@@ -209,21 +215,21 @@ class ReportsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "s.status = 'completed'";
+        $where = "s.sale_status = 'completed'";
         $queryParams = [];
 
         if (!empty($params['date_from'])) {
-            $where .= " AND s.created_at >= ?";
-            $queryParams[] = $params['date_from'] . ' 00:00:00';
+            $where .= " AND s.sale_date >= ?";
+            $queryParams[] = $params['date_from'];
         }
         if (!empty($params['date_to'])) {
-            $where .= " AND s.created_at <= ?";
-            $queryParams[] = $params['date_to'] . ' 23:59:59';
+            $where .= " AND s.sale_date <= ?";
+            $queryParams[] = $params['date_to'];
         }
 
         $summary = $db->fetch(
             "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total,
-                    COALESCE(SUM(discount), 0) as discounts, COALESCE(AVG(total), 0) as average
+                    COALESCE(SUM(discount_amount), 0) as discounts, COALESCE(AVG(total), 0) as average
              FROM sales s WHERE $where",
             $queryParams
         );
@@ -246,16 +252,16 @@ class ReportsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "s.status = 'completed'";
+        $where = "s.sale_status = 'completed'";
         $queryParams = [];
 
         if (!empty($params['date_from'])) {
-            $where .= " AND s.created_at >= ?";
-            $queryParams[] = $params['date_from'] . ' 00:00:00';
+            $where .= " AND s.sale_date >= ?";
+            $queryParams[] = $params['date_from'];
         }
         if (!empty($params['date_to'])) {
-            $where .= " AND s.created_at <= ?";
-            $queryParams[] = $params['date_to'] . ' 23:59:59';
+            $where .= " AND s.sale_date <= ?";
+            $queryParams[] = $params['date_to'];
         }
 
         $salesTotal = $db->fetch(
@@ -264,7 +270,7 @@ class ReportsController
         );
 
         $cogs = $db->fetch(
-            "SELECT COALESCE(SUM(si.quantity * p.cost_price), 0) as total
+            "SELECT COALESCE(SUM(si.quantity * p.buying_price), 0) as total
              FROM sale_items si
              JOIN products p ON p.id = si.product_id
              JOIN sales s ON s.id = si.sale_id
@@ -272,8 +278,20 @@ class ReportsController
             $queryParams
         );
 
+        $expensesWhere = "1=1";
+        $expenseParams = [];
+        if (!empty($params['date_from'])) {
+            $expensesWhere .= " AND expense_date >= ?";
+            $expenseParams[] = $params['date_from'];
+        }
+        if (!empty($params['date_to'])) {
+            $expensesWhere .= " AND expense_date <= ?";
+            $expenseParams[] = $params['date_to'];
+        }
+
         $expenses = $db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE 1=1"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE $expensesWhere AND deleted_at IS NULL",
+            $expenseParams
         );
 
         $sales = (float)$salesTotal['total'];
@@ -299,7 +317,7 @@ class ReportsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "p.is_deleted = 0";
+        $where = "p.deleted_at IS NULL";
         $queryParams = [];
 
         if (!empty($params['category_id'])) {
@@ -308,21 +326,28 @@ class ReportsController
         }
 
         $summary = $db->fetch(
-            "SELECT COUNT(*) as total_products,
-                    COALESCE(SUM(p.stock_quantity * p.cost_price), 0) as total_value,
-                    COALESCE(SUM(p.stock_quantity), 0) as total_stock
-             FROM products p WHERE $where",
+            "SELECT COUNT(DISTINCT p.id) as total_products,
+                    COALESCE(SUM(ps.quantity * p.buying_price), 0) as total_value,
+                    COALESCE(SUM(ps.quantity), 0) as total_stock
+             FROM products p
+             LEFT JOIN product_stocks ps ON ps.product_id = p.id
+             WHERE $where",
             $queryParams
         );
 
         $lowStock = $db->fetch(
-            "SELECT COUNT(*) as cnt FROM products p WHERE $where AND p.stock_quantity <= p.minimum_stock",
+            "SELECT COUNT(DISTINCT p.id) as cnt
+             FROM products p
+             LEFT JOIN product_stocks ps ON ps.product_id = p.id
+             WHERE $where AND ps.quantity <= p.minimum_stock",
             $queryParams
         );
 
         $byCategory = $db->fetchAll(
-            "SELECT c.name, COUNT(p.id) as count, COALESCE(SUM(p.stock_quantity), 0) as stock
-             FROM products p LEFT JOIN categories c ON c.id = p.category_id
+            "SELECT c.name, COUNT(DISTINCT p.id) as count, COALESCE(SUM(ps.quantity), 0) as stock
+             FROM products p
+             LEFT JOIN product_stocks ps ON ps.product_id = p.id
+             LEFT JOIN categories c ON c.id = p.category_id
              WHERE $where GROUP BY c.id, c.name ORDER BY stock DESC",
             $queryParams
         );
@@ -340,16 +365,16 @@ class ReportsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "1=1";
+        $where = "e.deleted_at IS NULL";
         $queryParams = [];
 
         if (!empty($params['date_from'])) {
-            $where .= " AND e.created_at >= ?";
-            $queryParams[] = $params['date_from'] . ' 00:00:00';
+            $where .= " AND e.expense_date >= ?";
+            $queryParams[] = $params['date_from'];
         }
         if (!empty($params['date_to'])) {
-            $where .= " AND e.created_at <= ?";
-            $queryParams[] = $params['date_to'] . ' 23:59:59';
+            $where .= " AND e.expense_date <= ?";
+            $queryParams[] = $params['date_to'];
         }
 
         $total = $db->fetch(
@@ -368,5 +393,53 @@ class ReportsController
             'total_expenses' => (float)$total['total'],
             'by_category' => $byCategory,
         ]);
+    }
+
+    public function customers(): void
+    {
+        AuthMiddleware::authenticate();
+        $db = Database::getInstance();
+        $params = Request::getQueryParams();
+
+        $topCustomers = $db->fetchAll(
+            "SELECT c.id, CONCAT(c.first_name, ' ', c.last_name) as name, c.email, c.phone,
+                    COUNT(s.id) as order_count, COALESCE(SUM(s.total), 0) as total_spent
+             FROM customers c
+             LEFT JOIN sales s ON s.customer_id = c.id AND s.sale_status = 'completed'
+             WHERE c.deleted_at IS NULL
+             GROUP BY c.id ORDER BY total_spent DESC LIMIT 20"
+        );
+
+        Response::success($topCustomers);
+    }
+
+    public function products(): void
+    {
+        AuthMiddleware::authenticate();
+        $db = Database::getInstance();
+        $params = Request::getQueryParams();
+
+        $topProducts = $db->fetchAll(
+            "SELECT p.id, p.name, p.sku, SUM(si.quantity) as sold, SUM(si.subtotal) as revenue
+             FROM sale_items si
+             JOIN products p ON p.id = si.product_id
+             JOIN sales s ON s.id = si.sale_id AND s.sale_status = 'completed'
+             WHERE p.deleted_at IS NULL";
+
+        $queryParams = [];
+        if (!empty($params['date_from'])) {
+            $topProducts .= " AND s.sale_date >= ?";
+            $queryParams[] = $params['date_from'];
+        }
+        if (!empty($params['date_to'])) {
+            $topProducts .= " AND s.sale_date <= ?";
+            $queryParams[] = $params['date_to'];
+        }
+
+        $topProducts .= " GROUP BY p.id ORDER BY revenue DESC LIMIT 20";
+
+        $products = $db->fetchAll($topProducts, $queryParams);
+
+        Response::success($products);
     }
 }

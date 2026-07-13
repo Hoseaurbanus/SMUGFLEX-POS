@@ -29,6 +29,10 @@ class ActivityLogsController
             $where .= " AND al.action = ?";
             $queryParams[] = $params['action'];
         }
+        if (!empty($params['module'])) {
+            $where .= " AND al.module = ?";
+            $queryParams[] = $params['module'];
+        }
         if (!empty($params['date_from'])) {
             $where .= " AND al.created_at >= ?";
             $queryParams[] = $params['date_from'] . ' 00:00:00';
@@ -41,7 +45,7 @@ class ActivityLogsController
         $total = $db->fetch("SELECT COUNT(*) as cnt FROM activity_logs al WHERE $where", $queryParams)['cnt'];
 
         $logs = $db->fetchAll(
-            "SELECT al.*, u.name as user_name
+            "SELECT al.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
              FROM activity_logs al
              LEFT JOIN users u ON u.id = al.user_id
              WHERE $where

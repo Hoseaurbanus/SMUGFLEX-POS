@@ -18,10 +18,10 @@ class UsersController
         $perPage = max(1, min(100, (int)($params['per_page'] ?? 20)));
         $offset = ($page - 1) * $perPage;
         $search = $params['search'] ?? '';
-        $where = "u.is_deleted = 0";
+        $where = "u.deleted_at IS NULL";
 
         if ($search) {
-            $where .= " AND (u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
+            $where .= " AND (CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
             $searchParam = "%$search%";
             $countParams = [$searchParam, $searchParam, $searchParam];
         } else {
@@ -30,11 +30,12 @@ class UsersController
 
         $total = $db->fetch("SELECT COUNT(*) as cnt FROM users u WHERE $where", $countParams)['cnt'];
 
-        $sql = "SELECT u.id, u.name, u.email, u.phone, u.role_id, u.branch_id, u.is_active, u.created_at,
-                       r.name as role_name, b.name as branch_name
+        $sql = "SELECT u.id, CONCAT(u.first_name, ' ', u.last_name) as name, u.first_name, u.last_name, u.email, u.phone, u.avatar, u.role_id, u.branch_id, u.warehouse_id, u.is_active, u.last_login_at, u.created_at,
+                       r.name as role_name, b.name as branch_name, w.name as warehouse_name
                 FROM users u
                 LEFT JOIN roles r ON r.id = u.role_id
                 LEFT JOIN branches b ON b.id = u.branch_id
+                LEFT JOIN warehouses w ON w.id = u.warehouse_id
                 WHERE $where
                 ORDER BY u.created_at DESC
                 LIMIT $perPage OFFSET $offset";
@@ -48,29 +49,31 @@ class UsersController
         AuthMiddleware::authenticate();
         $body = Request::getBody();
 
-        if (!$body || empty($body['name']) || empty($body['email']) || empty($body['password'])) {
-            Response::error('Name, email and password are required', 422);
+        if (!$body || empty($body['first_name']) || empty($body['email']) || empty($body['password'])) {
+            Response::error('First name, email and password are required', 422);
         }
 
         $db = Database::getInstance();
 
-        if ($db->fetch("SELECT id FROM users WHERE email = ?", [$body['email']])) {
+        if ($db->fetch("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL", [$body['email']])) {
             Response::error('Email already exists', 409);
         }
 
         $userId = $db->insert('users', [
-            'name' => $body['name'],
+            'first_name' => $body['first_name'],
+            'last_name' => $body['last_name'] ?? '',
             'email' => $body['email'],
             'password' => hash_password($body['password']),
             'phone' => $body['phone'] ?? null,
             'role_id' => $body['role_id'] ?? null,
             'branch_id' => $body['branch_id'] ?? null,
+            'warehouse_id' => $body['warehouse_id'] ?? null,
             'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $user = $db->fetch("SELECT id, name, email, phone, role_id, branch_id, is_active, created_at FROM users WHERE id = ?", [$userId]);
+        $user = $db->fetch("SELECT id, CONCAT(first_name, ' ', last_name) as name, first_name, last_name, email, phone, role_id, branch_id, warehouse_id, is_active, created_at FROM users WHERE id = ?", [$userId]);
         Response::success($user, 'User created', 201);
     }
 
@@ -80,12 +83,13 @@ class UsersController
         $db = Database::getInstance();
 
         $user = $db->fetch(
-            "SELECT u.id, u.name, u.email, u.phone, u.role_id, u.branch_id, u.is_active, u.created_at, u.updated_at,
-                    r.name as role_name, b.name as branch_name
+            "SELECT u.id, CONCAT(u.first_name, ' ', u.last_name) as name, u.first_name, u.last_name, u.email, u.phone, u.avatar, u.role_id, u.branch_id, u.warehouse_id, u.is_active, u.last_login_at, u.created_at, u.updated_at,
+                    r.name as role_name, b.name as branch_name, w.name as warehouse_name
              FROM users u
              LEFT JOIN roles r ON r.id = u.role_id
              LEFT JOIN branches b ON b.id = u.branch_id
-             WHERE u.id = ? AND u.is_deleted = 0",
+             LEFT JOIN warehouses w ON w.id = u.warehouse_id
+             WHERE u.id = ? AND u.deleted_at IS NULL",
             [$id]
         );
 
@@ -102,24 +106,27 @@ class UsersController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $user = $db->fetch("SELECT id FROM users WHERE id = ? AND is_deleted = 0", [$id]);
+        $user = $db->fetch("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$user) {
             Response::error('User not found', 404);
         }
 
         if (!empty($body['email'])) {
-            $exists = $db->fetch("SELECT id FROM users WHERE email = ? AND id != ?", [$body['email'], $id]);
+            $exists = $db->fetch("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL", [$body['email'], $id]);
             if ($exists) {
                 Response::error('Email already exists', 409);
             }
         }
 
         $updateData = [];
-        if (isset($body['name'])) $updateData['name'] = $body['name'];
+        if (isset($body['first_name'])) $updateData['first_name'] = $body['first_name'];
+        if (isset($body['last_name'])) $updateData['last_name'] = $body['last_name'];
         if (isset($body['email'])) $updateData['email'] = $body['email'];
         if (isset($body['phone'])) $updateData['phone'] = $body['phone'];
+        if (isset($body['avatar'])) $updateData['avatar'] = $body['avatar'];
         if (isset($body['role_id'])) $updateData['role_id'] = $body['role_id'];
         if (isset($body['branch_id'])) $updateData['branch_id'] = $body['branch_id'];
+        if (isset($body['warehouse_id'])) $updateData['warehouse_id'] = $body['warehouse_id'];
         if (isset($body['is_active'])) $updateData['is_active'] = $body['is_active'];
         if (!empty($body['password'])) $updateData['password'] = hash_password($body['password']);
 
@@ -130,7 +137,7 @@ class UsersController
         $updateData['updated_at'] = date('Y-m-d H:i:s');
         $db->update('users', $updateData, 'id = ?', [$id]);
 
-        $user = $db->fetch("SELECT id, name, email, phone, role_id, branch_id, is_active, created_at FROM users WHERE id = ?", [$id]);
+        $user = $db->fetch("SELECT id, CONCAT(first_name, ' ', last_name) as name, first_name, last_name, email, phone, role_id, branch_id, warehouse_id, is_active, created_at FROM users WHERE id = ?", [$id]);
         Response::success($user, 'User updated');
     }
 
@@ -139,7 +146,7 @@ class UsersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $user = $db->fetch("SELECT id, role_id FROM users WHERE id = ? AND is_deleted = 0", [$id]);
+        $user = $db->fetch("SELECT id, role_id FROM users WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$user) {
             Response::error('User not found', 404);
         }
@@ -149,7 +156,7 @@ class UsersController
             Response::error('Cannot delete super admin', 403);
         }
 
-        $db->update('users', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->update('users', ['deleted_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
         Response::success(null, 'User deleted');
     }
 
@@ -158,7 +165,7 @@ class UsersController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $user = $db->fetch("SELECT id, is_active FROM users WHERE id = ? AND is_deleted = 0", [$id]);
+        $user = $db->fetch("SELECT id, is_active FROM users WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$user) {
             Response::error('User not found', 404);
         }
@@ -180,7 +187,7 @@ class UsersController
 
         $db = Database::getInstance();
 
-        $user = $db->fetch("SELECT id FROM users WHERE id = ? AND is_deleted = 0", [$id]);
+        $user = $db->fetch("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$user) {
             Response::error('User not found', 404);
         }

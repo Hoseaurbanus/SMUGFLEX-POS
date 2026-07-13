@@ -15,17 +15,17 @@ class BrandsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "is_deleted = 0";
+        $where = "1=1";
         $queryParams = [];
 
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND name LIKE ?";
+            $where .= " AND b.name LIKE ?";
             $queryParams[] = $search;
         }
 
         $brands = $db->fetchAll(
-            "SELECT b.*, (SELECT COUNT(*) FROM products WHERE brand_id = b.id AND is_deleted = 0) as product_count
+            "SELECT b.*, (SELECT COUNT(*) FROM products WHERE brand_id = b.id AND deleted_at IS NULL) as product_count
              FROM brands b WHERE $where ORDER BY b.name ASC",
             $queryParams
         );
@@ -44,13 +44,16 @@ class BrandsController
 
         $db = Database::getInstance();
 
-        if ($db->fetch("SELECT id FROM brands WHERE name = ? AND is_deleted = 0", [$body['name']])) {
+        if ($db->fetch("SELECT id FROM brands WHERE name = ?", [$body['name']])) {
             Response::error('Brand name already exists', 409);
         }
 
         $brandId = $db->insert('brands', [
             'name' => $body['name'],
+            'slug' => $body['slug'] ?? strtolower(str_replace(' ', '-', $body['name'])),
             'description' => $body['description'] ?? null,
+            'logo' => $body['logo'] ?? null,
+            'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -65,13 +68,13 @@ class BrandsController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $brand = $db->fetch("SELECT id FROM brands WHERE id = ? AND is_deleted = 0", [$id]);
+        $brand = $db->fetch("SELECT id FROM brands WHERE id = ?", [$id]);
         if (!$brand) {
             Response::error('Brand not found', 404);
         }
 
         if (!empty($body['name'])) {
-            $exists = $db->fetch("SELECT id FROM brands WHERE name = ? AND id != ? AND is_deleted = 0", [$body['name'], $id]);
+            $exists = $db->fetch("SELECT id FROM brands WHERE name = ? AND id != ?", [$body['name'], $id]);
             if ($exists) {
                 Response::error('Brand name already exists', 409);
             }
@@ -79,7 +82,10 @@ class BrandsController
 
         $updateData = [];
         if (isset($body['name'])) $updateData['name'] = $body['name'];
+        if (isset($body['slug'])) $updateData['slug'] = $body['slug'];
         if (isset($body['description'])) $updateData['description'] = $body['description'];
+        if (isset($body['logo'])) $updateData['logo'] = $body['logo'];
+        if (isset($body['is_active'])) $updateData['is_active'] = $body['is_active'];
 
         if (empty($updateData)) {
             Response::error('No data to update', 422);
@@ -97,17 +103,17 @@ class BrandsController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $brand = $db->fetch("SELECT id FROM brands WHERE id = ? AND is_deleted = 0", [$id]);
+        $brand = $db->fetch("SELECT id FROM brands WHERE id = ?", [$id]);
         if (!$brand) {
             Response::error('Brand not found', 404);
         }
 
-        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE brand_id = ? AND is_deleted = 0", [$id]);
+        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE brand_id = ? AND deleted_at IS NULL", [$id]);
         if ((int)$productCount['cnt'] > 0) {
             Response::error('Cannot delete brand with products', 409);
         }
 
-        $db->update('brands', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->delete('brands', 'id = ?', [$id]);
         Response::success(null, 'Brand deleted');
     }
 }

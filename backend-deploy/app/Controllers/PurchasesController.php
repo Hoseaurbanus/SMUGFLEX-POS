@@ -18,16 +18,24 @@ class PurchasesController
         $perPage = max(1, min(100, (int)($params['per_page'] ?? 20)));
         $offset = ($page - 1) * $perPage;
 
-        $where = "1=1";
+        $where = "p.deleted_at IS NULL";
         $queryParams = [];
 
         if (!empty($params['status'])) {
             $where .= " AND p.status = ?";
             $queryParams[] = $params['status'];
         }
+        if (!empty($params['payment_status'])) {
+            $where .= " AND p.payment_status = ?";
+            $queryParams[] = $params['payment_status'];
+        }
         if (!empty($params['supplier_id'])) {
             $where .= " AND p.supplier_id = ?";
             $queryParams[] = $params['supplier_id'];
+        }
+        if (!empty($params['warehouse_id'])) {
+            $where .= " AND p.warehouse_id = ?";
+            $queryParams[] = $params['warehouse_id'];
         }
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
@@ -41,8 +49,12 @@ class PurchasesController
         )['cnt'];
 
         $purchases = $db->fetchAll(
-            "SELECT p.*, s.name as supplier_name
-             FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id
+            "SELECT p.*, s.name as supplier_name, w.name as warehouse_name,
+                    CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+             FROM purchases p
+             LEFT JOIN suppliers s ON s.id = p.supplier_id
+             LEFT JOIN warehouses w ON w.id = p.warehouse_id
+             LEFT JOIN users u ON u.id = p.user_id
              WHERE $where
              ORDER BY p.created_at DESC
              LIMIT $perPage OFFSET $offset",
@@ -61,41 +73,92 @@ class PurchasesController
             Response::error('Items are required', 422);
         }
 
+        if (empty($body['warehouse_id'])) {
+            Response::error('Warehouse ID is required', 422);
+        }
+
         $db = Database::getInstance();
-        $total = 0;
+        $subtotal = 0;
+        $discountAmount = (float)($body['discount_amount'] ?? 0);
+        $taxAmount = (float)($body['tax_amount'] ?? 0);
+        $shippingCost = (float)($body['shipping_cost'] ?? 0);
 
         foreach ($body['items'] as $item) {
             if (empty($item['product_id']) || empty($item['quantity'])) {
                 Response::error('Each item must have product_id and quantity', 422);
             }
-            $total += ($item['unit_cost'] ?? 0) * $item['quantity'];
+            $itemTotal = ($item['unit_cost'] ?? 0) * $item['quantity'];
+            $subtotal += $itemTotal;
+        }
+
+        $total = $subtotal - $discountAmount + $taxAmount + $shippingCost;
+        $paidAmount = (float)($body['paid_amount'] ?? 0);
+        $dueAmount = $total - $paidAmount;
+        $paymentStatus = 'unpaid';
+        if ($paidAmount >= $total) {
+            $paymentStatus = 'paid';
+        } elseif ($paidAmount > 0) {
+            $paymentStatus = 'partial';
         }
 
         $purchaseId = $db->insert('purchases', [
             'reference_number' => generate_reference('PUR'),
             'supplier_id' => $body['supplier_id'] ?? null,
-            'total' => $total,
+            'warehouse_id' => $body['warehouse_id'],
+            'user_id' => get_user_id(),
+            'branch_id' => $body['branch_id'] ?? null,
             'status' => 'pending',
+            'subtotal' => $subtotal,
+            'discount_amount' => $discountAmount,
+            'tax_amount' => $taxAmount,
+            'shipping_cost' => $shippingCost,
+            'total' => $total,
+            'paid_amount' => $paidAmount,
+            'due_amount' => $dueAmount,
+            'payment_status' => $paymentStatus,
+            'order_date' => $body['order_date'] ?? date('Y-m-d'),
+            'expected_date' => $body['expected_date'] ?? null,
             'notes' => $body['notes'] ?? null,
-            'created_by' => get_user_id(),
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         foreach ($body['items'] as $item) {
-            $subtotal = ($item['unit_cost'] ?? 0) * $item['quantity'];
+            $itemTotal = ($item['unit_cost'] ?? 0) * $item['quantity'];
+            $itemDiscount = $item['discount'] ?? 0;
+            $itemTaxRate = $item['tax_rate'] ?? 0;
+            $itemTaxAmount = ($itemTotal - $itemDiscount) * $itemTaxRate / 100;
+
             $db->insert('purchase_items', [
                 'purchase_id' => $purchaseId,
                 'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'] ?? null,
                 'quantity' => $item['quantity'],
-                'unit_cost' => $item['unit_cost'] ?? 0,
-                'subtotal' => $subtotal,
                 'received_quantity' => 0,
+                'unit_cost' => $item['unit_cost'] ?? 0,
+                'discount' => $itemDiscount,
+                'tax_rate' => $itemTaxRate,
+                'tax_amount' => $itemTaxAmount,
+                'total' => $itemTotal - $itemDiscount + $itemTaxAmount,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        if ($paidAmount > 0) {
+            $db->insert('purchase_payments', [
+                'purchase_id' => $purchaseId,
+                'amount' => $paidAmount,
+                'payment_method' => $body['payment_method'] ?? 'cash',
+                'reference' => $body['payment_reference'] ?? null,
+                'notes' => $body['payment_notes'] ?? null,
+                'payment_date' => date('Y-m-d H:i:s'),
+                'user_id' => get_user_id(),
+                'created_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
         $purchase = $db->fetch("SELECT * FROM purchases WHERE id = ?", [$purchaseId]);
-        $items = $db->fetchAll("SELECT * FROM purchase_items WHERE purchase_id = ?", [$purchaseId]);
+        $items = $db->fetchAll("SELECT pi.*, pr.name as product_name FROM purchase_items pi JOIN products pr ON pr.id = pi.product_id WHERE pi.purchase_id = ?", [$purchaseId]);
         $purchase['items'] = $items;
 
         Response::success($purchase, 'Purchase created', 201);
@@ -107,9 +170,13 @@ class PurchasesController
         $db = Database::getInstance();
 
         $purchase = $db->fetch(
-            "SELECT p.*, s.name as supplier_name
-             FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id
-             WHERE p.id = ?",
+            "SELECT p.*, s.name as supplier_name, w.name as warehouse_name,
+                    CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+             FROM purchases p
+             LEFT JOIN suppliers s ON s.id = p.supplier_id
+             LEFT JOIN warehouses w ON w.id = p.warehouse_id
+             LEFT JOIN users u ON u.id = p.user_id
+             WHERE p.id = ? AND p.deleted_at IS NULL",
             [$id]
         );
 
@@ -118,14 +185,17 @@ class PurchasesController
         }
 
         $items = $db->fetchAll(
-            "SELECT pi.*, pr.name as product_name
+            "SELECT pi.*, pr.name as product_name, pr.sku
              FROM purchase_items pi JOIN products pr ON pr.id = pi.product_id
              WHERE pi.purchase_id = ?",
             [$id]
         );
 
         $payments = $db->fetchAll(
-            "SELECT * FROM purchase_payments WHERE purchase_id = ? ORDER BY created_at DESC",
+            "SELECT pp.*, CONCAT(u.first_name, ' ', u.last_name) as user_name
+             FROM purchase_payments pp
+             LEFT JOIN users u ON u.id = pp.user_id
+             WHERE pp.purchase_id = ? ORDER BY pp.created_at DESC",
             [$id]
         );
 
@@ -141,35 +211,62 @@ class PurchasesController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $purchase = $db->fetch("SELECT id, status FROM purchases WHERE id = ?", [$id]);
+        $purchase = $db->fetch("SELECT id, status FROM purchases WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$purchase) {
             Response::error('Purchase not found', 404);
         }
 
-        if ($purchase['status'] === 'received') {
-            Response::error('Cannot update received purchase', 409);
+        if ($purchase['status'] === 'received' || $purchase['status'] === 'cancelled') {
+            Response::error('Cannot update received or cancelled purchase', 409);
         }
 
         $updateData = [];
         if (isset($body['supplier_id'])) $updateData['supplier_id'] = $body['supplier_id'];
+        if (isset($body['warehouse_id'])) $updateData['warehouse_id'] = $body['warehouse_id'];
+        if (isset($body['branch_id'])) $updateData['branch_id'] = $body['branch_id'];
         if (isset($body['notes'])) $updateData['notes'] = $body['notes'];
+        if (isset($body['order_date'])) $updateData['order_date'] = $body['order_date'];
+        if (isset($body['expected_date'])) $updateData['expected_date'] = $body['expected_date'];
 
         if (!empty($body['items'])) {
-            $total = 0;
+            $subtotal = 0;
             $db->delete('purchase_items', 'purchase_id = ?', [$id]);
             foreach ($body['items'] as $item) {
-                $subtotal = ($item['unit_cost'] ?? 0) * $item['quantity'];
-                $total += $subtotal;
+                $itemTotal = ($item['unit_cost'] ?? 0) * $item['quantity'];
+                $itemDiscount = $item['discount'] ?? 0;
+                $itemTaxRate = $item['tax_rate'] ?? 0;
+                $itemTaxAmount = ($itemTotal - $itemDiscount) * $itemTaxRate / 100;
+                $total = $itemTotal - $itemDiscount + $itemTaxAmount;
+                $subtotal += $itemTotal;
+
                 $db->insert('purchase_items', [
                     'purchase_id' => $id,
                     'product_id' => $item['product_id'],
+                    'variant_id' => $item['variant_id'] ?? null,
                     'quantity' => $item['quantity'],
-                    'unit_cost' => $item['unit_cost'] ?? 0,
-                    'subtotal' => $subtotal,
                     'received_quantity' => 0,
+                    'unit_cost' => $item['unit_cost'] ?? 0,
+                    'discount' => $itemDiscount,
+                    'tax_rate' => $itemTaxRate,
+                    'tax_amount' => $itemTaxAmount,
+                    'total' => $total,
+                    'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
+
+            $discountAmount = (float)($body['discount_amount'] ?? 0);
+            $taxAmount = (float)($body['tax_amount'] ?? 0);
+            $shippingCost = (float)($body['shipping_cost'] ?? 0);
+            $total = $subtotal - $discountAmount + $taxAmount + $shippingCost;
+            $paidAmount = (float)($body['paid_amount'] ?? 0);
+
+            $updateData['subtotal'] = $subtotal;
+            $updateData['discount_amount'] = $discountAmount;
+            $updateData['tax_amount'] = $taxAmount;
+            $updateData['shipping_cost'] = $shippingCost;
             $updateData['total'] = $total;
+            $updateData['paid_amount'] = $paidAmount;
+            $updateData['due_amount'] = $total - $paidAmount;
         }
 
         if (!empty($updateData)) {
@@ -178,7 +275,7 @@ class PurchasesController
         }
 
         $purchase = $db->fetch("SELECT * FROM purchases WHERE id = ?", [$id]);
-        $items = $db->fetchAll("SELECT * FROM purchase_items WHERE purchase_id = ?", [$id]);
+        $items = $db->fetchAll("SELECT pi.*, pr.name as product_name FROM purchase_items pi JOIN products pr ON pr.id = pi.product_id WHERE pi.purchase_id = ?", [$id]);
         $purchase['items'] = $items;
 
         Response::success($purchase, 'Purchase updated');
@@ -189,7 +286,7 @@ class PurchasesController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $purchase = $db->fetch("SELECT id, status FROM purchases WHERE id = ?", [$id]);
+        $purchase = $db->fetch("SELECT id, status, warehouse_id FROM purchases WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$purchase) {
             Response::error('Purchase not found', 404);
         }
@@ -203,25 +300,56 @@ class PurchasesController
         foreach ($items as $item) {
             $qty = $item['quantity'] - ($item['received_quantity'] ?? 0);
             if ($qty > 0) {
-                $db->query(
-                    "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
-                    [$qty, $item['product_id']]
-                );
                 $db->update('purchase_items', ['received_quantity' => $item['quantity']], 'id = ?', [$item['id']]);
+
+                $existingStock = $db->fetch(
+                    "SELECT id, quantity FROM product_stocks WHERE product_id = ? AND warehouse_id = ? AND variant_id IS NULL",
+                    [$item['product_id'], $purchase['warehouse_id']]
+                );
+
+                if ($existingStock) {
+                    $db->update('product_stocks', [
+                        'quantity' => $existingStock['quantity'] + $qty,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ], 'id = ?', [$existingStock['id']]);
+                } else {
+                    $db->insert('product_stocks', [
+                        'product_id' => $item['product_id'],
+                        'variant_id' => $item['variant_id'] ?? null,
+                        'warehouse_id' => $purchase['warehouse_id'],
+                        'quantity' => $qty,
+                        'reserved_quantity' => 0,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
 
                 $db->insert('stock_movements', [
                     'product_id' => $item['product_id'],
+                    'variant_id' => $item['variant_id'] ?? null,
+                    'warehouse_id' => $purchase['warehouse_id'],
                     'type' => 'purchase',
                     'quantity' => $qty,
-                    'reference' => $purchase['id'],
+                    'reference_type' => 'App\\Models\\Purchase',
+                    'reference_id' => $purchase['id'],
                     'notes' => "Purchase #{$id} received",
+                    'user_id' => get_user_id(),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
         }
 
+        $receivedAll = true;
+        foreach ($items as $item) {
+            if ($item['received_quantity'] < $item['quantity']) {
+                $receivedAll = false;
+                break;
+            }
+        }
+
         $db->update('purchases', [
-            'status' => 'received',
+            'status' => $receivedAll ? 'received' : 'partial',
+            'received_date' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ], 'id = ?', [$id]);
 
@@ -239,27 +367,67 @@ class PurchasesController
 
         $db = Database::getInstance();
 
-        $purchase = $db->fetch("SELECT id, supplier_id, total FROM purchases WHERE id = ?", [$id]);
+        $purchase = $db->fetch("SELECT id, supplier_id, total, paid_amount FROM purchases WHERE id = ? AND deleted_at IS NULL", [$id]);
         if (!$purchase) {
             Response::error('Purchase not found', 404);
         }
 
+        $amount = (float)$body['amount'];
+        $newPaidAmount = (float)$purchase['paid_amount'] + $amount;
+        $dueAmount = (float)$purchase['total'] - $newPaidAmount;
+        $paymentStatus = 'partial';
+        if ($dueAmount <= 0) {
+            $paymentStatus = 'paid';
+        }
+
         $db->insert('purchase_payments', [
             'purchase_id' => $id,
-            'amount' => $body['amount'],
+            'amount' => $amount,
             'payment_method' => $body['payment_method'] ?? 'cash',
-            'reference' => $body['reference'] ?? generate_reference('PURPAY'),
+            'reference' => $body['reference'] ?? null,
             'notes' => $body['notes'] ?? null,
+            'payment_date' => date('Y-m-d H:i:s'),
+            'user_id' => get_user_id(),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
+        $db->update('purchases', [
+            'paid_amount' => $newPaidAmount,
+            'due_amount' => max(0, $dueAmount),
+            'payment_status' => $paymentStatus,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id = ?', [$id]);
+
         if ($purchase['supplier_id']) {
-            $db->query(
-                "UPDATE suppliers SET balance = balance - ? WHERE id = ?",
-                [$body['amount'], $purchase['supplier_id']]
-            );
+            $supplier = $db->fetch("SELECT outstanding_balance FROM suppliers WHERE id = ?", [$purchase['supplier_id']]);
+            if ($supplier) {
+                $newBalance = (float)$supplier['outstanding_balance'] - $amount;
+                $db->update('suppliers', ['outstanding_balance' => $newBalance, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$purchase['supplier_id']]);
+            }
         }
 
         Response::success(null, 'Payment recorded');
+    }
+
+    public function cancel(string $id): void
+    {
+        AuthMiddleware::authenticate();
+        $db = Database::getInstance();
+
+        $purchase = $db->fetch("SELECT id, status FROM purchases WHERE id = ? AND deleted_at IS NULL", [$id]);
+        if (!$purchase) {
+            Response::error('Purchase not found', 404);
+        }
+
+        if ($purchase['status'] === 'received') {
+            Response::error('Cannot cancel received purchase', 409);
+        }
+
+        $db->update('purchases', [
+            'status' => 'cancelled',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id = ?', [$id]);
+
+        Response::success(null, 'Purchase cancelled');
     }
 }

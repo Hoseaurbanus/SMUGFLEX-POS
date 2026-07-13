@@ -15,18 +15,18 @@ class CategoriesController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "is_deleted = 0";
+        $where = "1=1";
         $queryParams = [];
 
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND name LIKE ?";
+            $where .= " AND c.name LIKE ?";
             $queryParams[] = $search;
         }
 
         $categories = $db->fetchAll(
-            "SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_deleted = 0) as product_count
-             FROM categories c WHERE $where ORDER BY c.name ASC",
+            "SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id AND deleted_at IS NULL) as product_count
+             FROM categories c WHERE $where ORDER BY c.sort_order ASC, c.name ASC",
             $queryParams
         );
 
@@ -44,14 +44,18 @@ class CategoriesController
 
         $db = Database::getInstance();
 
-        if ($db->fetch("SELECT id FROM categories WHERE name = ? AND is_deleted = 0", [$body['name']])) {
+        if ($db->fetch("SELECT id FROM categories WHERE name = ?", [$body['name']])) {
             Response::error('Category name already exists', 409);
         }
 
         $categoryId = $db->insert('categories', [
             'name' => $body['name'],
+            'slug' => $body['slug'] ?? strtolower(str_replace(' ', '-', $body['name'])),
             'description' => $body['description'] ?? null,
             'parent_id' => $body['parent_id'] ?? null,
+            'image' => $body['image'] ?? null,
+            'sort_order' => $body['sort_order'] ?? 0,
+            'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -66,13 +70,13 @@ class CategoriesController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $category = $db->fetch("SELECT id FROM categories WHERE id = ? AND is_deleted = 0", [$id]);
+        $category = $db->fetch("SELECT id FROM categories WHERE id = ?", [$id]);
         if (!$category) {
             Response::error('Category not found', 404);
         }
 
         if (!empty($body['name'])) {
-            $exists = $db->fetch("SELECT id FROM categories WHERE name = ? AND id != ? AND is_deleted = 0", [$body['name'], $id]);
+            $exists = $db->fetch("SELECT id FROM categories WHERE name = ? AND id != ?", [$body['name'], $id]);
             if ($exists) {
                 Response::error('Category name already exists', 409);
             }
@@ -80,8 +84,12 @@ class CategoriesController
 
         $updateData = [];
         if (isset($body['name'])) $updateData['name'] = $body['name'];
+        if (isset($body['slug'])) $updateData['slug'] = $body['slug'];
         if (isset($body['description'])) $updateData['description'] = $body['description'];
         if (array_key_exists('parent_id', $body)) $updateData['parent_id'] = $body['parent_id'];
+        if (isset($body['image'])) $updateData['image'] = $body['image'];
+        if (isset($body['sort_order'])) $updateData['sort_order'] = $body['sort_order'];
+        if (isset($body['is_active'])) $updateData['is_active'] = $body['is_active'];
 
         if (empty($updateData)) {
             Response::error('No data to update', 422);
@@ -99,17 +107,22 @@ class CategoriesController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $category = $db->fetch("SELECT id FROM categories WHERE id = ? AND is_deleted = 0", [$id]);
+        $category = $db->fetch("SELECT id FROM categories WHERE id = ?", [$id]);
         if (!$category) {
             Response::error('Category not found', 404);
         }
 
-        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE category_id = ? AND is_deleted = 0", [$id]);
+        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE category_id = ? AND deleted_at IS NULL", [$id]);
         if ((int)$productCount['cnt'] > 0) {
             Response::error('Cannot delete category with products', 409);
         }
 
-        $db->update('categories', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $childCount = $db->fetch("SELECT COUNT(*) as cnt FROM categories WHERE parent_id = ?", [$id]);
+        if ((int)$childCount['cnt'] > 0) {
+            Response::error('Cannot delete category with subcategories', 409);
+        }
+
+        $db->delete('categories', 'id = ?', [$id]);
         Response::success(null, 'Category deleted');
     }
 
@@ -119,7 +132,7 @@ class CategoriesController
         $db = Database::getInstance();
 
         $categories = $db->fetchAll(
-            "SELECT id, name, parent_id FROM categories WHERE is_deleted = 0 ORDER BY name ASC"
+            "SELECT id, name, slug, parent_id FROM categories ORDER BY sort_order ASC, name ASC"
         );
 
         $tree = [];

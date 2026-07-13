@@ -61,4 +61,13 @@ class NotificationsController
 
         Response::success(null, 'All notifications marked as read');
     }
+
+    public function unreadCount(): void
+    {
+        $payload = AuthMiddleware::authenticate();
+        $db = Database::getInstance();
+
+        $result = $db->fetch("SELECT COUNT(*) as cnt FROM notifications WHERE user_id = ? AND is_read = 0", [$payload['user_id']]);
+        Response::success(['count' => (int)$result['cnt']]);
+    }
 }

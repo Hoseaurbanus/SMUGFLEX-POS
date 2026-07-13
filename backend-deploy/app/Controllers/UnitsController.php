@@ -15,17 +15,17 @@ class UnitsController
         $db = Database::getInstance();
         $params = Request::getQueryParams();
 
-        $where = "is_deleted = 0";
+        $where = "1=1";
         $queryParams = [];
 
         if (!empty($params['search'])) {
             $search = '%' . $params['search'] . '%';
-            $where .= " AND name LIKE ?";
+            $where .= " AND u.name LIKE ?";
             $queryParams[] = $search;
         }
 
         $units = $db->fetchAll(
-            "SELECT u.*, (SELECT COUNT(*) FROM products WHERE unit_id = u.id AND is_deleted = 0) as product_count
+            "SELECT u.*, (SELECT COUNT(*) FROM products WHERE unit_id = u.id AND deleted_at IS NULL) as product_count
              FROM units u WHERE $where ORDER BY u.name ASC",
             $queryParams
         );
@@ -44,13 +44,16 @@ class UnitsController
 
         $db = Database::getInstance();
 
-        if ($db->fetch("SELECT id FROM units WHERE name = ? AND is_deleted = 0", [$body['name']])) {
+        if ($db->fetch("SELECT id FROM units WHERE name = ?", [$body['name']])) {
             Response::error('Unit name already exists', 409);
         }
 
         $unitId = $db->insert('units', [
             'name' => $body['name'],
             'short_name' => $body['short_name'] ?? null,
+            'base_unit_id' => $body['base_unit_id'] ?? null,
+            'conversion_factor' => $body['conversion_factor'] ?? 1,
+            'is_active' => $body['is_active'] ?? 1,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -65,13 +68,13 @@ class UnitsController
         $body = Request::getBody();
         $db = Database::getInstance();
 
-        $unit = $db->fetch("SELECT id FROM units WHERE id = ? AND is_deleted = 0", [$id]);
+        $unit = $db->fetch("SELECT id FROM units WHERE id = ?", [$id]);
         if (!$unit) {
             Response::error('Unit not found', 404);
         }
 
         if (!empty($body['name'])) {
-            $exists = $db->fetch("SELECT id FROM units WHERE name = ? AND id != ? AND is_deleted = 0", [$body['name'], $id]);
+            $exists = $db->fetch("SELECT id FROM units WHERE name = ? AND id != ?", [$body['name'], $id]);
             if ($exists) {
                 Response::error('Unit name already exists', 409);
             }
@@ -80,6 +83,9 @@ class UnitsController
         $updateData = [];
         if (isset($body['name'])) $updateData['name'] = $body['name'];
         if (isset($body['short_name'])) $updateData['short_name'] = $body['short_name'];
+        if (array_key_exists('base_unit_id', $body)) $updateData['base_unit_id'] = $body['base_unit_id'];
+        if (isset($body['conversion_factor'])) $updateData['conversion_factor'] = $body['conversion_factor'];
+        if (isset($body['is_active'])) $updateData['is_active'] = $body['is_active'];
 
         if (empty($updateData)) {
             Response::error('No data to update', 422);
@@ -97,17 +103,17 @@ class UnitsController
         AuthMiddleware::authenticate();
         $db = Database::getInstance();
 
-        $unit = $db->fetch("SELECT id FROM units WHERE id = ? AND is_deleted = 0", [$id]);
+        $unit = $db->fetch("SELECT id FROM units WHERE id = ?", [$id]);
         if (!$unit) {
             Response::error('Unit not found', 404);
         }
 
-        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE unit_id = ? AND is_deleted = 0", [$id]);
+        $productCount = $db->fetch("SELECT COUNT(*) as cnt FROM products WHERE unit_id = ? AND deleted_at IS NULL", [$id]);
         if ((int)$productCount['cnt'] > 0) {
             Response::error('Cannot delete unit with products', 409);
         }
 
-        $db->update('units', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+        $db->delete('units', 'id = ?', [$id]);
         Response::success(null, 'Unit deleted');
     }
 }
