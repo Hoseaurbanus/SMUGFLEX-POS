@@ -89,8 +89,8 @@ export default function Branches() {
                       <td>{b.name}</td>
                       <td>{b.code}</td>
                       <td>{b.phone}</td>
-                      <td><span className={`badge bg-${b.status === 'active' ? 'success' : 'secondary'}`}>{b.status}</span></td>
-                      <td>{b.users_count ?? 0}</td>
+                      <td><span className={`badge bg-${b.is_active ? 'success' : 'secondary'}`}>{b.is_active ? 'Active' : 'Inactive'}</span></td>
+                      <td>{b.user_count ?? 0}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-info me-1" onClick={() => openEdit(b)}><i className="bi bi-pencil"></i></button>
                         <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(b.id, b.name)}><i className="bi bi-trash"></i></button>

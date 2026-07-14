@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function Returns() {
   const [page, setPage] = useState(1);
@@ -45,8 +46,8 @@ export default function Returns() {
                   {returns.map((r) => (
                     <tr key={r.id}>
                       <td><strong>{r.return_number || `RET-${r.id}`}</strong></td>
-                      <td>{r.sale?.invoice_number || r.sale_id}</td>
-                      <td>${parseFloat(r.refund_amount || 0).toFixed(2)}</td>
+                      <td>{r.sale_invoice_number || r.sale_id}</td>
+                      <td>{formatCurrency(r.refund_amount || 0)}</td>
                       <td>{r.reason}</td>
                       <td>
                         <span className={`badge bg-${r.status === 'approved' ? 'success' : r.status === 'rejected' ? 'danger' : 'warning'}`}>

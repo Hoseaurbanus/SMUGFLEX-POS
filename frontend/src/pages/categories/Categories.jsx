@@ -94,7 +94,7 @@ export default function Categories() {
                     <tr key={cat.id}>
                       <td>{cat.name}</td>
                       <td>{cat.description}</td>
-                      <td>{cat.products_count ?? 0}</td>
+                      <td>{cat.product_count ?? 0}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-info me-1" onClick={() => openEdit(cat)}>
                           <i className="bi bi-pencil"></i>

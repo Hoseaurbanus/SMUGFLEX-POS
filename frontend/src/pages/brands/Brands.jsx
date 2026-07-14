@@ -92,7 +92,7 @@ export default function Brands() {
                     <tr key={b.id}>
                       <td>{b.name}</td>
                       <td>{b.description}</td>
-                      <td>{b.products_count ?? 0}</td>
+                      <td>{b.product_count ?? 0}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-info me-1" onClick={() => openEdit(b)}>
                           <i className="bi bi-pencil"></i>

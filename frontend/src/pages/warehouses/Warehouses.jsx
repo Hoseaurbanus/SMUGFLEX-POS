@@ -94,9 +94,9 @@ export default function Warehouses() {
                     <tr key={w.id}>
                       <td>{w.name}</td>
                       <td>{w.code}</td>
-                      <td>{w.branch?.name || '—'}</td>
-                      <td><span className={`badge bg-${w.status === 'active' ? 'success' : 'secondary'}`}>{w.status}</span></td>
-                      <td>{w.products_count ?? 0}</td>
+                      <td>{w.branch_name || '—'}</td>
+                      <td><span className={`badge bg-${w.is_active ? 'success' : 'secondary'}`}>{w.is_active ? 'Active' : 'Inactive'}</span></td>
+                      <td>{w.product_count ?? 0}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-info me-1" onClick={() => openEdit(w)}><i className="bi bi-pencil"></i></button>
                         <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(w.id, w.name)}><i className="bi bi-trash"></i></button>

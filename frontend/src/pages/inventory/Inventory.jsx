@@ -73,16 +73,16 @@ export default function Inventory() {
                 <tbody>
                   {inventory.map((item) => (
                     <tr key={item.id} className={item.quantity <= (item.low_stock_threshold || 5) ? 'table-danger' : ''}>
-                      <td>{item.product?.name || item.product_name}</td>
-                      <td>{item.product?.sku || item.sku}</td>
-                      <td>{item.warehouse?.name || '—'}</td>
+                      <td>{item.product_name || item.product?.name || '-'}</td>
+                      <td>{item.sku || item.product?.sku || '-'}</td>
+                      <td>{item.warehouse_name || '—'}</td>
                       <td>
                         {item.quantity}
                         {item.quantity <= (item.low_stock_threshold || 5) && (
                           <span className="badge bg-danger ms-2">Low</span>
                         )}
                       </td>
-                      <td>{item.product?.category?.name || item.category}</td>
+                      <td>{item.category_name || item.product?.category?.name || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -5,7 +5,7 @@ import api from '../../services/api';
 
 export default function Settings() {
   const [form, setForm] = useState({
-    company_name: '', email: '', phone: '', address: '',
+    name: '', email: '', phone: '', address: '',
     currency: 'USD', tax_rate: 0, receipt_footer: '',
   });
 
@@ -17,7 +17,7 @@ export default function Settings() {
   useEffect(() => {
     if (data) {
       setForm({
-        company_name: data.company_name || '',
+        name: data.name || '',
         email: data.email || '',
         phone: data.phone || '',
         address: data.address || '',
@@ -55,7 +55,7 @@ export default function Settings() {
             <div className="row">
               <div className="col-md-6 mb-3">
                 <label className="form-label">Company Name *</label>
-                <input className="form-control" required value={form.company_name} onChange={(e) => update('company_name', e.target.value)} />
+                <input className="form-control" required value={form.name} onChange={(e) => update('name', e.target.value)} />
               </div>
               <div className="col-md-6 mb-3">
                 <label className="form-label">Email</label>

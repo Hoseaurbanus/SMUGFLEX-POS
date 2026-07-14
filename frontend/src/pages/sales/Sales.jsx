@@ -17,7 +17,7 @@ export default function Sales() {
       const params = new URLSearchParams({ search, page, per_page: 15 });
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
-      if (status) params.append('status', status);
+      if (status) params.append('sale_status', status);
       return api.get(`/sales?${params}`).then(res => res.data);
     },
   });

@@ -47,7 +47,7 @@ export default function Dashboard() {
       icon: 'bi-graph-up-arrow',
       iconBg: 'rgba(34, 197, 94, 0.15)',
       iconColor: '#22C55E',
-      label: "Today's Profit",
+      label: 'Monthly Profit',
       value: formatCurrency(stats?.monthly_profit || 0),
       change: '',
       positive: true,

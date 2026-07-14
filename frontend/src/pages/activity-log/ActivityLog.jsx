@@ -48,7 +48,7 @@ export default function ActivityLog() {
             <div className="col-md-3">
               <select className="form-select" value={userId} onChange={(e) => { setUserId(e.target.value); setPage(1); }}>
                 <option value="">All Users</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name || `${u.first_name} ${u.last_name}`}</option>)}
               </select>
             </div>
             <div className="col-md-3">
@@ -85,7 +85,7 @@ export default function ActivityLog() {
                 <tbody>
                   {logs.map((log) => (
                     <tr key={log.id}>
-                      <td>{log.user?.first_name} {log.user?.last_name}</td>
+                      <td>{log.user_name || '-'}</td>
                       <td>
                         <span className={`badge bg-${getActionBadge(log.action)}`}>{log.action}</span>
                       </td>

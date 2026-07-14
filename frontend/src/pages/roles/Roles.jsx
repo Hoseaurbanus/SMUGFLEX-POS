@@ -111,7 +111,7 @@ export default function Roles() {
                     <tr key={r.id}>
                       <td>{r.name}</td>
                       <td>{r.description}</td>
-                      <td>{r.users_count ?? 0}</td>
+                      <td>{r.user_count ?? 0}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-info me-1" onClick={() => openEdit(r)}>
                           <i className="bi bi-pencil"></i>
