@@ -402,7 +402,7 @@ export default function POS() {
 
               <div style={{ marginBottom: '1rem' }}>
                 <label style={styles.fieldLabel}>Payment Method</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                <div className="payment-methods-grid">
                   {[
                     { id: 'cash', icon: 'bi-cash', label: 'Cash' },
                     { id: 'card', icon: 'bi-credit-card', label: 'Card' },

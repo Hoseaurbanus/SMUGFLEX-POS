@@ -20,7 +20,7 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="stat-card" style={{ animation: 'pulse 1.5s infinite' }}>
               <div style={{ height: 48, background: '#1E293B', borderRadius: 8, marginBottom: 12 }} />
@@ -113,7 +113,7 @@ export default function Dashboard() {
       </div>
 
       {/* Primary Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         {statCards.map((card, index) => (
           <div key={index} className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -131,7 +131,7 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         {secondaryCards.map((card, index) => (
           <div key={index} className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
@@ -148,7 +148,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Sales & Top Products */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+      <div className="dashboard-panels">
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h6 style={{ margin: 0, fontWeight: 600 }}>Recent Sales</h6>
