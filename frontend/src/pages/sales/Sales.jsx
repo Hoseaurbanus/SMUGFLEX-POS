@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function Sales() {
   const [search, setSearch] = useState('');
@@ -96,12 +97,12 @@ export default function Sales() {
                   {sales.map((s) => (
                     <tr key={s.id}>
                       <td><strong>{s.invoice_number}</strong></td>
-                      <td>{s.customer?.first_name} {s.customer?.last_name}</td>
-                      <td>${parseFloat(s.total || 0).toFixed(2)}</td>
+                      <td>{s.customer_name || 'Walk-in'}</td>
+                      <td>{formatCurrency(s.total)}</td>
                       <td>{s.payment_method}</td>
                       <td>
-                        <span className={`badge bg-${s.status === 'completed' ? 'success' : s.status === 'voided' ? 'danger' : 'warning'}`}>
-                          {s.status}
+                        <span className={`badge bg-${s.sale_status === 'completed' ? 'success' : s.sale_status === 'voided' ? 'danger' : 'warning'}`}>
+                          {s.sale_status}
                         </span>
                       </td>
                       <td>{new Date(s.created_at).toLocaleDateString()}</td>

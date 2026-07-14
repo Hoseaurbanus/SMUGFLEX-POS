@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function SaleView() {
   const { id } = useParams();
@@ -44,7 +45,7 @@ export default function SaleView() {
       <div className="page-header d-flex justify-content-between align-items-center mb-3">
         <h4 className="mb-0">Sale #{sale.invoice_number}</h4>
         <div>
-          {sale.status !== 'voided' && (
+          {sale.sale_status !== 'voided' && (
             <button className="btn btn-danger me-2" onClick={handleVoid} disabled={voidMutation.isPending}>
               <i className="bi bi-x-lg me-1"></i> Void Sale
             </button>
@@ -64,13 +65,13 @@ export default function SaleView() {
                 <tbody>
                   <tr><td>Invoice #</td><td>{sale.invoice_number}</td></tr>
                   <tr><td>Date</td><td>{new Date(sale.created_at).toLocaleString()}</td></tr>
-                  <tr><td>Customer</td><td>{sale.customer?.first_name} {sale.customer?.last_name}</td></tr>
+                  <tr><td>Customer</td><td>{sale.customer_name || 'Walk-in'}</td></tr>
                   <tr><td>Payment Method</td><td>{sale.payment_method}</td></tr>
                   <tr>
                     <td>Status</td>
                     <td>
-                      <span className={`badge bg-${sale.status === 'completed' ? 'success' : sale.status === 'voided' ? 'danger' : 'warning'}`}>
-                        {sale.status}
+                      <span className={`badge bg-${sale.sale_status === 'completed' ? 'success' : sale.sale_status === 'voided' ? 'danger' : 'warning'}`}>
+                        {sale.sale_status}
                       </span>
                     </td>
                   </tr>
@@ -85,12 +86,12 @@ export default function SaleView() {
               <h6 className="card-title">Summary</h6>
               <table className="table table-dark table-sm mb-0">
                 <tbody>
-                  <tr><td>Subtotal</td><td>${parseFloat(sale.subtotal || 0).toFixed(2)}</td></tr>
-                  <tr><td>Tax</td><td>${parseFloat(sale.tax || 0).toFixed(2)}</td></tr>
-                  <tr><td>Discount</td><td>-${parseFloat(sale.discount || 0).toFixed(2)}</td></tr>
-                  <tr><td><strong>Total</strong></td><td><strong>${parseFloat(sale.total || 0).toFixed(2)}</strong></td></tr>
-                  <tr><td>Paid</td><td>${parseFloat(sale.amount_paid || 0).toFixed(2)}</td></tr>
-                  <tr><td>Change</td><td>${parseFloat(sale.change || 0).toFixed(2)}</td></tr>
+                  <tr><td>Subtotal</td><td>{formatCurrency(sale.subtotal)}</td></tr>
+                  <tr><td>Tax</td><td>{formatCurrency(sale.tax_amount)}</td></tr>
+                  <tr><td>Discount</td><td>-{formatCurrency(sale.discount_amount)}</td></tr>
+                  <tr><td><strong>Total</strong></td><td><strong>{formatCurrency(sale.total)}</strong></td></tr>
+                  <tr><td>Paid</td><td>{formatCurrency(sale.paid_amount)}</td></tr>
+                  <tr><td>Change</td><td>{formatCurrency(sale.change || 0)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -115,11 +116,11 @@ export default function SaleView() {
               <tbody>
                 {(sale.items || []).map((item, idx) => (
                   <tr key={idx}>
-                    <td>{item.product?.name || item.product_name}</td>
+                    <td>{item.product_name}</td>
                     <td>{item.quantity}</td>
-                    <td>${parseFloat(item.unit_price || 0).toFixed(2)}</td>
-                    <td>${parseFloat(item.discount || 0).toFixed(2)}</td>
-                    <td>${parseFloat(item.total || 0).toFixed(2)}</td>
+                    <td>{formatCurrency(item.unit_price)}</td>
+                    <td>{formatCurrency(item.discount || 0)}</td>
+                    <td>{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
               </tbody>

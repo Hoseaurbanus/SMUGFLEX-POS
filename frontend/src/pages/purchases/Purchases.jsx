@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function Purchases() {
   const [search, setSearch] = useState('');
@@ -66,6 +67,7 @@ export default function Purchases() {
                     <th>Ref #</th>
                     <th>Supplier</th>
                     <th>Total</th>
+                    <th>Payment</th>
                     <th>Status</th>
                     <th>Date</th>
                   </tr>
@@ -74,8 +76,13 @@ export default function Purchases() {
                   {purchases.map((p) => (
                     <tr key={p.id}>
                       <td><strong>{p.reference_number || `PUR-${p.id}`}</strong></td>
-                      <td>{p.supplier?.name}</td>
-                      <td>${parseFloat(p.total || 0).toFixed(2)}</td>
+                      <td>{p.supplier_name || '-'}</td>
+                      <td>{formatCurrency(p.total || 0)}</td>
+                      <td>
+                        <span className={`badge bg-${p.payment_status === 'paid' ? 'success' : p.payment_status === 'partial' ? 'warning' : 'secondary'}`}>
+                          {p.payment_status}
+                        </span>
+                      </td>
                       <td>
                         <span className={`badge bg-${p.status === 'received' ? 'success' : p.status === 'cancelled' ? 'danger' : 'warning'}`}>
                           {p.status}

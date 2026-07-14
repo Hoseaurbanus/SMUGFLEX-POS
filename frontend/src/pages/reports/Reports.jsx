@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 const tabs = ['daily', 'weekly', 'monthly', 'yearly'];
 
@@ -59,7 +60,7 @@ export default function Reports() {
               <div className="card">
                 <div className="card-body text-center">
                   <h6 className="text-muted">Total Sales</h6>
-                  <h3 className="text-primary">${parseFloat(summary.total_sales || 0).toFixed(2)}</h3>
+                  <h3 className="text-primary">{formatCurrency(summary.total_sales || 0)}</h3>
                 </div>
               </div>
             </div>
@@ -67,7 +68,7 @@ export default function Reports() {
               <div className="card">
                 <div className="card-body text-center">
                   <h6 className="text-muted">Total Expenses</h6>
-                  <h3 className="text-danger">${parseFloat(summary.total_expenses || 0).toFixed(2)}</h3>
+                  <h3 className="text-danger">{formatCurrency(summary.total_expenses || 0)}</h3>
                 </div>
               </div>
             </div>
@@ -75,7 +76,7 @@ export default function Reports() {
               <div className="card">
                 <div className="card-body text-center">
                   <h6 className="text-muted">Net Profit</h6>
-                  <h3 className="text-success">${parseFloat(summary.net_profit || 0).toFixed(2)}</h3>
+                  <h3 className="text-success">{formatCurrency(summary.net_profit || summary.profit || 0)}</h3>
                 </div>
               </div>
             </div>
@@ -83,7 +84,7 @@ export default function Reports() {
               <div className="card">
                 <div className="card-body text-center">
                   <h6 className="text-muted">Transactions</h6>
-                  <h3>{summary.total_transactions || 0}</h3>
+                  <h3>{summary.total_transactions || summary.sales_count || 0}</h3>
                 </div>
               </div>
             </div>
@@ -106,8 +107,8 @@ export default function Reports() {
                       {summary.top_products.map((p, idx) => (
                         <tr key={idx}>
                           <td>{p.name}</td>
-                          <td>{p.quantity_sold}</td>
-                          <td>${parseFloat(p.revenue || 0).toFixed(2)}</td>
+                          <td>{p.sold || p.quantity_sold || 0}</td>
+                          <td>{formatCurrency(p.revenue || 0)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -134,7 +135,63 @@ export default function Reports() {
                       {summary.daily_sales.map((d, idx) => (
                         <tr key={idx}>
                           <td>{d.date}</td>
-                          <td>${parseFloat(d.total || 0).toFixed(2)}</td>
+                          <td>{formatCurrency(d.total || 0)}</td>
+                          <td>{d.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {summary.daily_data && summary.daily_data.length > 0 && (
+            <div className="card">
+              <div className="card-body">
+                <h6 className="card-title">Daily Breakdown</h6>
+                <div className="table-responsive">
+                  <table className="table table-dark table-hover">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Sales</th>
+                        <th>Transactions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.daily_data.map((d, idx) => (
+                        <tr key={idx}>
+                          <td>{d.date}</td>
+                          <td>{formatCurrency(d.total || 0)}</td>
+                          <td>{d.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {summary.monthly_data && summary.monthly_data.length > 0 && (
+            <div className="card">
+              <div className="card-body">
+                <h6 className="card-title">Monthly Breakdown</h6>
+                <div className="table-responsive">
+                  <table className="table table-dark table-hover">
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>Sales</th>
+                        <th>Transactions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.monthly_data.map((d, idx) => (
+                        <tr key={idx}>
+                          <td>{d.month}</td>
+                          <td>{formatCurrency(d.total || 0)}</td>
                           <td>{d.count}</td>
                         </tr>
                       ))}

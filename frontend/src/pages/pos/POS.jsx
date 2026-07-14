@@ -60,7 +60,7 @@ export default function POS() {
           sku: product.sku,
           selling_price: parseFloat(product.selling_price),
           quantity: 1,
-          stock: product.total_stock || 0,
+          stock: product.stock_quantity || 0,
           tax_rate: parseFloat(product.tax_rate || 0),
         },
       ];
@@ -221,8 +221,8 @@ export default function POS() {
                 <p style={styles.productSku}>{product.sku}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={styles.productPrice}>{formatCurrency(product.selling_price)}</span>
-                  <span style={{ ...styles.stockBadge, color: (product.total_stock || 0) < 5 ? '#EF4444' : '#22C55E' }}>
-                    {product.total_stock || 0} in stock
+                  <span style={{ ...styles.stockBadge, color: (product.stock_quantity || 0) < 5 ? '#EF4444' : '#22C55E' }}>
+                    {product.stock_quantity || 0} in stock
                   </span>
                 </div>
               </div>

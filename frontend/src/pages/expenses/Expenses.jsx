@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
-const emptyForm = { category: '', amount: '', payment_method: 'cash', description: '', date: '' };
+const emptyForm = { expense_category_id: '', amount: '', payment_method: 'cash', description: '', expense_date: '' };
 
 export default function Expenses() {
   const queryClient = useQueryClient();
@@ -22,6 +23,11 @@ export default function Expenses() {
       if (dateTo) params.append('date_to', dateTo);
       return api.get(`/expenses?${params}`).then(res => res.data);
     },
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['expense-categories'],
+    queryFn: () => api.get('/expense-categories').then(res => res.data.data || res.data || []),
   });
 
   const createMutation = useMutation({
@@ -95,10 +101,10 @@ export default function Expenses() {
                   {expenses.map((e) => (
                     <tr key={e.id}>
                       <td>{e.reference_number || `EXP-${e.id}`}</td>
-                      <td>{e.category}</td>
-                      <td>${parseFloat(e.amount || 0).toFixed(2)}</td>
+                      <td>{e.category_name || '-'}</td>
+                      <td>{formatCurrency(e.amount)}</td>
                       <td>{e.payment_method}</td>
-                      <td>{new Date(e.date || e.created_at).toLocaleDateString()}</td>
+                      <td>{new Date(e.expense_date || e.created_at).toLocaleDateString()}</td>
                       <td>{e.description}</td>
                       <td>
                         <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(e.id)}>
@@ -144,7 +150,12 @@ export default function Expenses() {
                 <div className="modal-body">
                   <div className="mb-3">
                     <label className="form-label">Category *</label>
-                    <input className="form-control" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                    <select className="form-select" required value={form.expense_category_id} onChange={(e) => setForm({ ...form, expense_category_id: e.target.value })}>
+                      <option value="">Select category</option>
+                      {(Array.isArray(categories) ? categories : []).map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Amount *</label>
@@ -160,7 +171,7 @@ export default function Expenses() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Date *</label>
-                    <input type="date" className="form-control" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                    <input type="date" className="form-control" required value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Description</label>

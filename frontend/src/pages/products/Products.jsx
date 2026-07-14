@@ -80,8 +80,8 @@ export default function Products() {
                     <td>{formatCurrency(product.buying_price)}</td>
                     <td style={{ fontWeight: 600, color: '#22C55E' }}>{formatCurrency(product.selling_price)}</td>
                     <td>
-                      <span style={{ color: product.total_stock <= product.minimum_stock ? '#EF4444' : '#F8FAFC' }}>
-                        {product.total_stock || 0}
+                      <span style={{ color: product.stock_quantity <= product.minimum_stock ? '#EF4444' : '#F8FAFC' }}>
+                        {product.stock_quantity || 0}
                       </span>
                     </td>
                     <td><span className={`badge badge-${getStatusColor(product.status)}`}>{product.status}</span></td>

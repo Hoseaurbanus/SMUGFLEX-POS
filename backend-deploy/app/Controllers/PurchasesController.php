@@ -73,8 +73,16 @@ class PurchasesController
             Response::error('Items are required', 422);
         }
 
+        if (empty($body['supplier_id'])) {
+            Response::error('Supplier ID is required', 422);
+        }
+
         if (empty($body['warehouse_id'])) {
             Response::error('Warehouse ID is required', 422);
+        }
+
+        if (empty($body['branch_id'])) {
+            Response::error('Branch ID is required', 422);
         }
 
         $db = Database::getInstance();
@@ -103,10 +111,10 @@ class PurchasesController
 
         $purchaseId = $db->insert('purchases', [
             'reference_number' => generate_reference('PUR'),
-            'supplier_id' => $body['supplier_id'] ?? null,
+            'supplier_id' => $body['supplier_id'],
             'warehouse_id' => $body['warehouse_id'],
             'user_id' => get_user_id(),
-            'branch_id' => $body['branch_id'] ?? null,
+            'branch_id' => $body['branch_id'],
             'status' => 'pending',
             'subtotal' => $subtotal,
             'discount_amount' => $discountAmount,

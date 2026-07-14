@@ -145,7 +145,7 @@ class SuppliersController
         }
 
         $purchases = $db->fetchAll(
-            "SELECT id, reference_number, total, status, purchase_status, created_at FROM purchases WHERE supplier_id = ? ORDER BY created_at DESC",
+            "SELECT id, reference_number, total, status, payment_status, created_at FROM purchases WHERE supplier_id = ? ORDER BY created_at DESC",
             [$id]
         );
 

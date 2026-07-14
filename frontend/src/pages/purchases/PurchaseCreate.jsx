@@ -3,10 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function PurchaseCreate() {
   const navigate = useNavigate();
   const [supplierId, setSupplierId] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([{ product_id: '', quantity: 1, unit_cost: 0 }]);
 
@@ -20,6 +23,16 @@ export default function PurchaseCreate() {
     queryFn: () => api.get('/products?per_page=100').then(res => res.data.data || res.data),
   });
 
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses-list'],
+    queryFn: () => api.get('/warehouses?per_page=100').then(res => res.data.data || res.data || []),
+  });
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches-list'],
+    queryFn: () => api.get('/branches?per_page=100').then(res => res.data.data || res.data || []),
+  });
+
   const mutation = useMutation({
     mutationFn: (data) => api.post('/purchases', data),
     onSuccess: () => { toast.success('Purchase created'); navigate('/purchases'); },
@@ -28,6 +41,8 @@ export default function PurchaseCreate() {
 
   const suppliers = Array.isArray(suppliersData) ? suppliersData : suppliersData?.data || [];
   const products = Array.isArray(productsData) ? productsData : productsData?.data || [];
+  const warehouses = Array.isArray(warehousesData) ? warehousesData : [];
+  const branches = Array.isArray(branchesData) ? branchesData : [];
 
   const addItem = () => setItems([...items, { product_id: '', quantity: 1, unit_cost: 0 }]);
 
@@ -44,8 +59,16 @@ export default function PurchaseCreate() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!supplierId) { toast.error('Select a supplier'); return; }
+    if (!warehouseId) { toast.error('Select a warehouse'); return; }
+    if (!branchId) { toast.error('Select a branch'); return; }
     if (items.length === 0 || !items[0].product_id) { toast.error('Add at least one item'); return; }
-    mutation.mutate({ supplier_id: supplierId, notes, items, total });
+    mutation.mutate({
+      supplier_id: supplierId,
+      warehouse_id: warehouseId,
+      branch_id: branchId,
+      notes,
+      items: items.map(i => ({ product_id: i.product_id, quantity: parseInt(i.quantity), unit_cost: parseFloat(i.unit_cost) })),
+    });
   };
 
   return (
@@ -61,11 +84,25 @@ export default function PurchaseCreate() {
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="row mb-3">
-              <div className="col-md-6">
+              <div className="col-md-4">
                 <label className="form-label">Supplier *</label>
                 <select className="form-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
                   <option value="">Select Supplier</option>
                   {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="col-md-4">
+                <label className="form-label">Warehouse *</label>
+                <select className="form-select" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
+                  <option value="">Select Warehouse</option>
+                  {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              <div className="col-md-4">
+                <label className="form-label">Branch *</label>
+                <select className="form-select" value={branchId} onChange={(e) => setBranchId(e.target.value)} required>
+                  <option value="">Select Branch</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
             </div>
@@ -106,7 +143,7 @@ export default function PurchaseCreate() {
             </div>
 
             <div className="text-end mb-3">
-              <strong>Total: ${total.toFixed(2)}</strong>
+              <strong>Total: {formatCurrency(total)}</strong>
             </div>
 
             <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>

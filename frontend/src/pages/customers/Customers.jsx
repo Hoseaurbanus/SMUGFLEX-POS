@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/formatters';
 
 export default function Customers() {
   const queryClient = useQueryClient();
@@ -88,10 +89,10 @@ export default function Customers() {
                       <td>{c.first_name} {c.last_name}</td>
                       <td>{c.email}</td>
                       <td>{c.phone}</td>
-                      <td>${parseFloat(c.wallet_balance || 0).toFixed(2)}</td>
+                      <td>{formatCurrency(c.wallet_balance)}</td>
                       <td>
-                        <span className={`badge bg-${c.status === 'active' ? 'success' : 'secondary'}`}>
-                          {c.status}
+                        <span className={`badge bg-${c.is_active ? 'success' : 'secondary'}`}>
+                          {c.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td>

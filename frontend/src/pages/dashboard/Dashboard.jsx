@@ -48,17 +48,17 @@ export default function Dashboard() {
       iconBg: 'rgba(34, 197, 94, 0.15)',
       iconColor: '#22C55E',
       label: "Today's Profit",
-      value: formatCurrency(stats?.today_profit || 0),
-      change: '+8.2%',
+      value: formatCurrency(stats?.monthly_profit || 0),
+      change: '',
       positive: true,
     },
     {
       icon: 'bi-wallet2',
       iconBg: 'rgba(239, 68, 68, 0.15)',
       iconColor: '#EF4444',
-      label: 'Expenses',
-      value: formatCurrency(stats?.today_expenses || 0),
-      change: '-3.1%',
+      label: 'Monthly Expenses',
+      value: formatCurrency(stats?.monthly_expenses || 0),
+      change: '',
       positive: false,
     },
     {
@@ -66,8 +66,8 @@ export default function Dashboard() {
       iconBg: 'rgba(139, 92, 246, 0.15)',
       iconColor: '#8B5CF6',
       label: 'Total Customers',
-      value: stats?.total_customers || 0,
-      change: '+5',
+      value: stats?.customer_count || 0,
+      change: '',
       positive: true,
     },
   ];
@@ -78,21 +78,21 @@ export default function Dashboard() {
       iconBg: 'rgba(56, 189, 248, 0.15)',
       iconColor: '#38BDF8',
       label: 'Total Products',
-      value: stats?.total_products || 0,
+      value: stats?.product_count || 0,
     },
     {
       icon: 'bi-exclamation-triangle',
       iconBg: 'rgba(245, 158, 11, 0.15)',
       iconColor: '#F59E0B',
       label: 'Low Stock Items',
-      value: stats?.low_stock_count || 0,
+      value: stats?.low_stock?.length || 0,
     },
     {
       icon: 'bi-truck',
       iconBg: 'rgba(34, 197, 94, 0.15)',
       iconColor: '#22C55E',
       label: 'Suppliers',
-      value: stats?.total_suppliers || 0,
+      value: stats?.supplier_count || 0,
     },
     {
       icon: 'bi-calendar-month',
@@ -169,7 +169,7 @@ export default function Dashboard() {
                   stats.recent_sales.map((sale) => (
                     <tr key={sale.id}>
                       <td style={{ fontWeight: 500, color: '#F8FAFC' }}>{sale.invoice_number}</td>
-                      <td>{sale.customer_first_name ? `${sale.customer_first_name} ${sale.customer_last_name}` : 'Walk-in'}</td>
+                      <td>{sale.customer_name || 'Walk-in'}</td>
                       <td style={{ fontWeight: 600, color: '#22C55E' }}>{formatCurrency(sale.total)}</td>
                       <td>
                         <span className={`badge badge-${sale.payment_status === 'paid' ? 'success' : sale.payment_status === 'partial' ? 'warning' : 'danger'}`}>
@@ -226,7 +226,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#F8FAFC', margin: 0 }}>{product.name}</p>
-                      <p style={{ fontSize: '0.6875rem', color: '#64748B', margin: 0 }}>{product.quantity_sold} sold</p>
+                      <p style={{ fontSize: '0.6875rem', color: '#64748B', margin: 0 }}>{product.sold} sold</p>
                     </div>
                   </div>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#22C55E' }}>

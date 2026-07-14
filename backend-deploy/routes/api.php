@@ -2,7 +2,6 @@
 
 // Public routes
 $router->post('/api/v1/auth/login', [App\Controllers\AuthController::class, 'login']);
-$router->post('/api/v1/auth/register', [App\Controllers\AuthController::class, 'register']);
 
 // Protected auth routes
 $router->post('/api/v1/auth/logout', function() { (new App\Controllers\AuthController())->logout(); });
@@ -102,6 +101,9 @@ $router->get('/api/v1/sales/{id}/receipt', function($id) { (new App\Controllers\
 
 // Expenses
 $router->get('/api/v1/expenses', function() { (new App\Controllers\ExpensesController())->index(); });
+
+// Returns
+$router->get('/api/v1/returns', function() { (new App\Controllers\ReturnsController())->index(); });
 $router->post('/api/v1/expenses', function() { (new App\Controllers\ExpensesController())->create(); });
 $router->put('/api/v1/expenses/{id}', function($id) { (new App\Controllers\ExpensesController())->update($id); });
 $router->delete('/api/v1/expenses/{id}', function($id) { (new App\Controllers\ExpensesController())->delete($id); });
