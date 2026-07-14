@@ -87,14 +87,14 @@ export default function Users() {
                     <tr key={u.id}>
                       <td>{u.first_name} {u.last_name}</td>
                       <td>{u.email}</td>
-                      <td>{u.role?.name || u.role}</td>
-                      <td>{u.branch?.name || '—'}</td>
+                      <td>{u.role_name || u.role?.name || '-'}</td>
+                      <td>{u.branch_name || '—'}</td>
                       <td>
                         <button
-                          className={`btn btn-sm ${u.status === 'active' ? 'btn-outline-success' : 'btn-outline-secondary'}`}
+                          className={`btn btn-sm ${u.is_active ? 'btn-outline-success' : 'btn-outline-secondary'}`}
                           onClick={() => toggleStatus.mutate(u.id)}
                         >
-                          {u.status === 'active' ? 'Active' : 'Inactive'}
+                          {u.is_active ? 'Active' : 'Inactive'}
                         </button>
                       </td>
                       <td>

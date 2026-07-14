@@ -75,7 +75,7 @@ export default function Purchases() {
                 <tbody>
                   {purchases.map((p) => (
                     <tr key={p.id}>
-                      <td><strong>{p.reference_number || `PUR-${p.id}`}</strong></td>
+                      <td><Link to={`/purchases/${p.id}`}><strong>{p.reference_number || `PUR-${p.id}`}</strong></Link></td>
                       <td>{p.supplier_name || '-'}</td>
                       <td>{formatCurrency(p.total || 0)}</td>
                       <td>

@@ -19,8 +19,10 @@ const CustomerCreate = lazy(() => import('./pages/customers/CustomerCreate'));
 const CustomerEdit = lazy(() => import('./pages/customers/CustomerEdit'));
 const Suppliers = lazy(() => import('./pages/suppliers/Suppliers'));
 const SupplierCreate = lazy(() => import('./pages/suppliers/SupplierCreate'));
+const SupplierEdit = lazy(() => import('./pages/suppliers/SupplierEdit'));
 const Purchases = lazy(() => import('./pages/purchases/Purchases'));
 const PurchaseCreate = lazy(() => import('./pages/purchases/PurchaseCreate'));
+const PurchaseDetail = lazy(() => import('./pages/purchases/PurchaseDetail'));
 const Sales = lazy(() => import('./pages/sales/Sales'));
 const SaleView = lazy(() => import('./pages/sales/SaleView'));
 const Returns = lazy(() => import('./pages/returns/Returns'));
@@ -30,6 +32,7 @@ const Warehouses = lazy(() => import('./pages/warehouses/Warehouses'));
 const Branches = lazy(() => import('./pages/branches/Branches'));
 const Users = lazy(() => import('./pages/users/Users'));
 const UserCreate = lazy(() => import('./pages/users/UserCreate'));
+const UserEdit = lazy(() => import('./pages/users/UserEdit'));
 const Roles = lazy(() => import('./pages/roles/Roles'));
 const Reports = lazy(() => import('./pages/reports/Reports'));
 const Settings = lazy(() => import('./pages/settings/Settings'));
@@ -105,9 +108,11 @@ export default function App() {
 
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="suppliers/create" element={<SupplierCreate />} />
+          <Route path="suppliers/:id/edit" element={<SupplierEdit />} />
 
           <Route path="purchases" element={<Purchases />} />
           <Route path="purchases/create" element={<PurchaseCreate />} />
+          <Route path="purchases/:id" element={<PurchaseDetail />} />
 
           <Route path="sales" element={<Sales />} />
           <Route path="sales/:id" element={<SaleView />} />
@@ -120,6 +125,7 @@ export default function App() {
 
           <Route path="users" element={<Users />} />
           <Route path="users/create" element={<UserCreate />} />
+          <Route path="users/:id/edit" element={<UserEdit />} />
           <Route path="roles" element={<Roles />} />
 
           <Route path="reports" element={<Reports />} />
