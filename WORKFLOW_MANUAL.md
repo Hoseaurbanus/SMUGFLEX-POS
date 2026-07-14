@@ -1,414 +1,914 @@
-# SmugFlex POS — End-to-End Audit, Workflow Manual & Roadmap
+# SmugFlex POS — Complete User Manual & Workflow Guide
 
-> **Date:** July 13, 2026
-> **System Version:** v1.0.0
-> **Stack:** React 19 + Vite (Frontend) | Standalone PHP 8.2 REST API (Backend) | MySQL 8.0
+> **Version:** 1.0.0  
+> **System:** SmugFlex POS  
+> **Company:** SmugFlex Ventures  
+> **Currency:** Nigerian Naira (₦)
 
 ---
 
 ## TABLE OF CONTENTS
 
-1. [System Architecture](#1-system-architecture)
-2. [Audit Summary Dashboard](#2-audit-summary-dashboard)
-3. [Critical Issues (Must Fix Before Launch)](#3-critical-issues-must-fix-before-launch)
-4. [High Priority Issues](#4-high-priority-issues)
-5. [Medium Priority Issues](#5-medium-priority-issues)
-6. [Complete Workflow Manual](#6-complete-workflow-manual)
-7. [API Reference](#7-api-reference)
-8. [Database Schema](#8-database-schema)
-9. [Development Roadmap](#9-development-roadmap)
-10. [Deployment Checklist](#10-deployment-checklist)
+1. [Getting Started](#1-getting-started)
+2. [Dashboard](#2-dashboard)
+3. [Point of Sale (POS)](#3-point-of-sale-pos)
+4. [Products](#4-products)
+5. [Categories, Brands & Units](#5-categories-brands--units)
+6. [Customers](#6-customers)
+7. [Suppliers](#7-suppliers)
+8. [Purchases](#8-purchases)
+9. [Sales](#9-sales)
+10. [Returns](#10-returns)
+11. [Expenses](#11-expenses)
+12. [Inventory](#12-inventory)
+13. [Warehouses & Branches](#13-warehouses--branches)
+14. [Users & Roles](#14-users--roles)
+15. [Reports](#15-reports)
+16. [Settings](#16-settings)
+17. [Notifications & Activity Log](#17-notifications--activity-log)
+18. [Profile & Account](#18-profile--account)
+19. [Theme & Responsive Design](#19-theme--responsive-design)
+20. [Default Credentials & Security](#20-default-credentials--security)
 
 ---
 
-## 1. SYSTEM ARCHITECTURE
+## 1. GETTING STARTED
 
+### 1.1 Accessing the System
+
+Open your browser and navigate to:
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        FRONTEND                              │
-│  React 19 + Vite → Vercel (smugflex-pos-mrfb.vercel.app)   │
-│  25+ pages │ React Query │ React Hot Toast │ Bootstrap 5.3  │
-└──────────────────────┬───────────────────────────────────────┘
-                       │ REST API (JSON)
-                       ▼
-┌──────────────────────────────────────────────────────────────┐
-│                        BACKEND                               │
-│  Standalone PHP 8.2 → cPanel (smug.com.gracelandroyal...)   │
-│  Custom Router │ JWT Auth │ PDO MySQL │ 21 Controllers      │
-└──────────────────────┬───────────────────────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────────────────────┐
-│                      DATABASE                                │
-│  MySQL 8.0 │ 35 Tables │ Triggers │ Foreign Keys │ Seed Data │
-│  DB: mdpjhtua_POS                                           │
-└──────────────────────────────────────────────────────────────┘
+https://smugflex-pos-mrfb.vercel.app
 ```
 
-### Frontend Structure
-```
-frontend/src/
-├── components/layout/   → Sidebar.jsx, TopBar.jsx
-├── contexts/            → AuthContext, ThemeContext, NotificationContext
-├── hooks/               → useAuth.js, useApi.js
-├── layouts/             → DashboardLayout, AuthLayout
-├── pages/               → 23 module directories (31 component files)
-├── services/            → api.js (Axios + token refresh)
-├── styles/              → theme.css, globals.css
-└── utils/               → formatters.js
-```
+You will be redirected to the login page.
 
-### Backend Structure
-```
-backend-deploy/
-├── index.php            → Entry point (CORS headers)
-├── .htaccess            → URL rewriting
-├── config/              → app.php (JWT secret), database.php
-├── core/                → Database, Router, JWT, AuthMiddleware, Request, Response, Helpers
-├── app/Controllers/     → 21 controllers
-└── routes/              → api.php (103 routes)
-```
+### 1.2 Logging In
+
+1. Enter your **email address** and **password**
+2. Click **"Sign In"**
+3. On success, you are redirected to the **Dashboard**
+
+**Default Admin Credentials:**
+- Email: `admin@smugflex.com`
+- Password: `password`
+
+> **Important:** Change the default password immediately after first login.
+
+### 1.3 Logging Out
+
+1. Click your **name/avatar** in the top-right corner
+2. Click **"Logout"**
+3. You are redirected to the login page
+
+### 1.4 Navigation
+
+The **sidebar** on the left provides access to all modules:
+
+| Section | Modules |
+|---------|---------|
+| Main | Dashboard, POS Terminal |
+| Catalog | Products, Categories, Brands, Units |
+| People | Customers, Suppliers |
+| Operations | Purchases, Sales, Returns, Expenses |
+| Stock | Inventory, Warehouses, Branches |
+| Administration | Users, Roles, Reports, Settings |
+
+On **mobile**, tap the **hamburger icon** (☰) in the top-left to open the sidebar. Tap outside to close it.
 
 ---
 
-## 2. AUDIT SUMMARY DASHBOARD
+## 2. DASHBOARD
 
-### Overall Status: ⚠️ NOT PRODUCTION READY
+**URL:** `/` (home page)
 
-| Category | Score | Details |
-|----------|-------|---------|
-| Backend API | 85/100 | 103 routes, all methods exist, auth applied. Issues: register endpoint security, missing permission enforcement, field mismatches |
-| Frontend Pages | 60/100 | 31 components, 8 fully functional, 17 functional with issues, 4 read-only/partial, 2 broken links |
-| DB Schema | 90/100 | 35 tables, proper FKs, triggers, seed data. 10 tables have no controller |
-| API Integration | 40/100 | Pervasive field name mismatches between frontend and backend |
-| Security | 50/100 | JWT auth works but: hardcoded secrets, open registration, no rate limiting, no permission enforcement |
-| Mobile Responsive | 80/100 | Sidebar, topbar, login, all pages responsive. Minor edge cases |
+The dashboard provides a real-time overview of your business.
 
-### Page Status Matrix
+### 2.1 Stat Cards
 
-| Page | Status | API Calls | Issues |
-|------|--------|-----------|--------|
-| Login | ✅ Working | POST /auth/login | Hardcoded default credentials |
-| Dashboard | ⚠️ Partial | GET /dashboard | 8 field name mismatches, hardcoded percentages |
-| POS Terminal | ⚠️ Partial | GET /products, GET /customers, POST /sales | Sale payload field mismatch, hold not persistent |
-| Products (list) | ⚠️ Partial | GET /products, DELETE /products/{id} | `total_stock` vs `stock_quantity`, no pagination UI |
-| Product Create | ❌ Broken | POST /products | Missing category/brand/unit dropdowns, `buying_price` field mismatch |
-| Product Edit | ❌ Broken | GET/PUT /products/{id} | Same issues as Create |
-| Categories | ✅ Working | Full CRUD | `products_count` vs `product_count` display issue |
-| Brands | ✅ Working | Full CRUD | Same product count display issue |
-| Units | ✅ Working | Full CRUD | Minor |
-| Customers (list) | ⚠️ Partial | GET /customers, DELETE | `first_name/last_name` vs backend `name` field |
-| Customer Create | ⚠️ Partial | POST /customers | Sends first_name/last_name but backend expects `name` |
-| Customer Edit | ⚠️ Partial | GET/PUT /customers/{id} | Same field mismatch |
-| Suppliers (list) | ⚠️ Partial | GET /suppliers, DELETE | Edit link broken (no SupplierEdit page) |
-| Supplier Create | ⚠️ Partial | POST /suppliers | `contact_person` vs backend `company` field |
-| Sales (list) | ⚠️ Partial | GET /sales | `invoice_number` field mismatch, hardcoded `$` |
-| Sale View | ⚠️ Partial | GET /sales/{id} | Multiple field mismatches, hardcoded `$` |
-| Purchases (list) | ⚠️ Partial | GET /purchases | Supplier display broken |
-| Purchase Create | ⚠️ Partial | GET/POST | Client-calculated total, hardcoded `$` |
-| Returns | ❌ Broken | GET /returns | **No backend endpoint exists** — 404 error |
-| Expenses | ⚠️ Partial | GET/POST/DELETE | Category text input vs foreign key mismatch |
-| Inventory | 📖 Read-only | GET /inventory | No adjust/transfer UI |
-| Warehouses | ✅ Working | Full CRUD | — |
-| Branches | ✅ Working | Full CRUD | — |
-| Users (list) | ⚠️ Partial | GET /users, DELETE | Edit link broken (no UserEdit page) |
-| User Create | ✅ Working | GET/POST | — |
-| Roles | ✅ Working | Full CRUD + permissions | — |
-| Reports | ⚠️ Partial | GET /reports/* | Date picker only works for daily, field mismatches |
-| Settings | ✅ Working | GET/PUT /settings/company | — |
-| Notifications | ✅ Working | GET /notifications | No error handling on mutations |
-| Activity Log | 📖 Read-only | GET /activity-logs | — |
-| Profile | ⚠️ Partial | GET /auth/me, POST /change-password | Cannot edit name/email/phone |
+Four cards at the top show:
 
-### Legend
-- ✅ Working — Fully functional end-to-end
-- ⚠️ Partial — Works but has field mismatches, missing features, or UX issues
-- ❌ Broken — Will not function correctly
-- 📖 Read-only — Can view data but no create/edit/delete
+| Card | Shows |
+|------|-------|
+| Today's Sales | Total revenue and number of sales for today |
+| Monthly Sales | Total revenue and number of sales for the current month |
+| Monthly Expenses | Total expenses for the current month |
+| Monthly Profit | Net profit (sales minus expenses) for the current month |
+
+Below these: **Total Products**, **Total Customers**, **Total Suppliers**, and **Low Stock** count.
+
+### 2.2 Recent Sales Table
+
+Shows the last 10 sales with:
+- Invoice number
+- Customer name
+- Total amount
+- Payment status (Paid, Partial, Unpaid)
+- Date
+
+Click any row to view the full sale details.
+
+### 2.3 Top Products
+
+Lists the best-selling products by quantity sold.
+
+### 2.4 Refreshing Data
+
+The dashboard refreshes automatically when you navigate to it. To manually refresh, navigate away and back, or use browser refresh.
 
 ---
 
-## 3. CRITICAL ISSUES (Must Fix Before Launch)
+## 3. POINT OF SALE (POS)
 
-### C1: Open Registration Allows Privilege Escalation
-**File:** `AuthController.php:64-93`
-`POST /api/v1/auth/register` is publicly accessible with NO authentication. An attacker can register with `role_id` pointing to super_admin. **Fix:** Remove this endpoint or add admin-only auth middleware.
+**URL:** `/pos`
 
-### C2: Hardcoded JWT Secret
-**File:** `config/app.php:4`
-JWT_SECRET is hardcoded as `SmuGFlExP0s_S3cr3t_K3y_2026_Pr0duct10n_R34dy`. If the code is public, anyone can forge tokens. **Fix:** Move to environment variable or encrypted config.
+The POS terminal is where you process live customer transactions.
 
-### C3: Hardcoded Database Credentials
-**File:** `config/database.php:3-4`
-DB credentials `mdpjhtua_POS` / `159075321@Au` are in source code. **Fix:** Move to environment variable.
+### 3.1 Layout
 
-### C4: No Permission Enforcement at API Level
-**File:** All controllers
-`AuthMiddleware::requirePermission()` exists but is **never used**. Any authenticated user can access any endpoint (delete users, manage roles, view reports). **Fix:** Add permission checks to sensitive endpoints.
+The POS screen is split into two sections:
 
-### C5: Dashboard Field Name Mismatches
-**File:** `Dashboard.jsx` vs `DashboardController.php`
-Frontend expects `total_customers`, `total_products`, `total_suppliers`, `low_stock_count`, `today_profit`, `today_expenses` — backend returns `customer_count`, `product_count`, `supplier_count`, `low_stock` (array), and omits profit/expenses. Dashboard stats will all show 0 or undefined.
+- **Left:** Product grid showing available products with images, names, prices, and stock levels
+- **Right:** Cart area with customer selection, item list, totals, and payment buttons
 
-### C6: Customer Model Field Mismatch
-**Files:** `Customers.jsx`, `CustomerCreate.jsx`, `CustomerEdit.jsx` vs `CustomersController.php`
-Frontend uses `first_name` + `last_name` but backend stores `name` (single field). All customer creation/editing will silently ignore the name fields. Customer list will show undefined names.
+### 3.2 Adding Products to Cart
 
-### C7: POS Sale Payload Field Mismatch
-**Files:** `POS.jsx` vs `SalesController.php`
-Frontend sends `unit_price`, `discount_amount`, `paid_amount` — backend expects `price`, `discount`, `amount_paid`. Sale creation will fail or have wrong values.
+**Method 1 — Click to Add:**
+1. Browse the product grid on the left
+2. Click any product to add 1 unit to the cart
+3. The product appears in the cart on the right
 
-### C8: Product Stock Field Mismatch
-**Files:** `Products.jsx`, `POS.jsx` vs `ProductsController.php`
-Frontend reads `product.total_stock` — backend returns `stock_quantity`. All stock displays will show 0.
+**Method 2 — Search:**
+1. Type in the **search bar** above the product grid
+2. Products filter by name or SKU as you type
+3. Click a product from the results to add it
 
-### C9: Returns Page Has No Backend
-**File:** `Returns.jsx`
-Frontend calls `GET /returns` but no such route exists in `api.php`. Returns page will show 404 error.
+### 3.3 Managing the Cart
 
-### C10: Missing Product Dropdowns in Create/Edit
-**Files:** `ProductCreate.jsx`, `ProductEdit.jsx`
-No category, brand, or unit select fields. Products can never be assigned to categories/brands/units from the UI.
+Once products are in the cart:
 
----
+- **Change Quantity:** Click the **+** or **−** buttons next to each item
+- **Remove Item:** Click the **trash icon** (🗑) next to the item
+- **Clear Entire Cart:** Click **"Clear"** button
 
-## 4. HIGH PRIORITY ISSUES
+### 3.4 Selecting a Customer
 
-| # | Issue | File | Impact |
-|---|-------|------|--------|
-| H1 | SupplierEdit page missing | App.jsx, Suppliers.jsx | Edit button is dead link |
-| H2 | UserEdit page missing | App.jsx, Users.jsx | Edit button is dead link |
-| H3 | POS warehouse_id/branch_id hardcoded to 1 | POS.jsx:117-118 | Wrong warehouse for multi-branch |
-| H4 | Wallet payment has no balance check | SalesController.php:142-158 | Wallet can go negative |
-| H5 | Purchase detail/receive page missing | App.jsx | Cannot receive purchases from UI |
-| H6 | Expense category is text input, not dropdown | Expenses.jsx:147 | Categories never saved correctly |
-| H7 | AuthContext uses raw axios for /auth/me | AuthContext.jsx | Bypasses token refresh interceptor |
-| H8 | Reports date picker only works for daily tab | Reports.jsx | Weekly/monthly/yearly ignore date |
-| H9 | Suppliers field mismatch (contact_person vs company) | SupplierCreate.jsx | Contact info not saved |
-| H10 | Sales invoice_number field mismatch | Sales.jsx:98 | Shows undefined |
-| H11 | Hold sales are ephemeral (lost on refresh) | POS.jsx | Data loss |
-| H12 | No barcode scanning integration | POS.jsx | Missing core POS feature |
+1. Click the **"Select Customer"** dropdown
+2. Type to search by name
+3. Select a customer (or leave blank for "Walk-in Customer")
 
----
+> Selecting a customer enables wallet payments and tracks purchase history.
 
-## 5. MEDIUM PRIORITY ISSUES
+### 3.5 Applying Discount
 
-| # | Issue | File | Impact |
-|---|-------|------|--------|
-| M1 | 9 pages use hardcoded `$` instead of formatCurrency() | Multiple | Inconsistent currency display |
-| M2 | Dashboard stat percentages are hardcoded strings | Dashboard.jsx | Fake data |
-| M3 | Product Export button has no handler | Products.jsx | Dead button |
-| M4 | No pagination UI on Products page | Products.jsx | Can't navigate pages |
-| M5 | Categories product count field mismatch | Categories.jsx | Always shows 0 |
-| M6 | Brands product count field mismatch | Brands.jsx | Always shows 0 |
-| M7 | 10 DB tables have no controller | Schema | Features incomplete |
-| M8 | Stock trigger may double-count | database.sql | Stock quantity incorrect |
-| M9 | No transaction handling in sales creation | SalesController.php | Race condition risk |
-| M10 | Refresh token same as access token | AuthController.php | Security concern |
-| M11 | Profile cannot edit name/email/phone | Profile.jsx | Incomplete |
-| M12 | No chart visualizations anywhere | Dashboard/Reports | Poor UX |
-| M13 | "Forgot password" link is dead | Login.jsx | UX dead end |
-| M14 | "Remember me" checkbox is non-functional | Login.jsx | UX dead end |
-| M15 | useApi.js hook is unused | hooks/useApi.js | Dead code |
-| M16 | Expense edit functionality missing | Expenses.jsx | Can't correct mistakes |
-| M17 | Reports missing profit/inventory/expense views | Reports.jsx | Backend has them, frontend doesn't |
-| M18 | Notifications have no error handling | Notifications.jsx | Silent failures |
+Enter a discount amount in the **"Discount"** field. This is subtracted from the subtotal.
+
+### 3.6 Completing a Sale
+
+1. Click **"Pay"** or **"Pay Now"**
+2. A payment modal appears showing:
+   - Subtotal
+   - Discount
+   - Tax (configurable from settings)
+   - **Total Due**
+3. Select a **payment method:**
+   - **Cash** — Enter amount tendered, system calculates change
+   - **Card** — Record card payment
+   - **Transfer** — Record bank transfer
+   - **Wallet** — Deducts from customer's wallet balance
+4. Click **"Complete Sale"**
+
+On success:
+- A receipt is generated
+- Stock is decremented
+- The sale appears in the Sales list
+- Cart is cleared
+
+### 3.7 Holding a Sale
+
+If a customer needs to step away:
+
+1. Click **"Hold"**
+2. The cart is saved temporarily
+3. To resume: the held sale will be available when you return to POS
+
+> **Note:** Held sales are stored in browser memory and lost on page refresh.
+
+### 3.8 Walk-in Customers
+
+If no customer is selected, the sale is processed as a walk-in (anonymous) transaction.
 
 ---
 
-## 6. COMPLETE WORKFLOW MANUAL
+## 4. PRODUCTS
 
-### 6.1 Authentication Workflow
+**URL:** `/products`
 
-```
-User opens app → Redirected to /login
-    ↓
-Enters email + password → POST /auth/login
-    ↓
-Backend validates → Returns { token, refresh_token, user }
-    ↓
-Frontend stores in localStorage → Redirects to /
-    ↓
-Every API request → Header: Authorization: Bearer <token>
-    ↓
-On 401 response → POST /auth/refresh with refresh_token
-    ↓
-If refresh succeeds → New token stored, original request retried
-If refresh fails → Clear localStorage → Redirect to /login
-    ↓
-Logout → POST /auth/logout → Clear localStorage → /login
-```
+### 4.1 Viewing Products
 
-**Known Issues:** Refresh token identical to access token. No server-side token revocation.
+The products page shows a table with:
+- Product name
+- SKU
+- Category
+- Buying price / Selling price
+- Stock quantity
+- Status (Active/Inactive)
 
-### 6.2 Dashboard Workflow
+**Search:** Type in the search bar to filter by name, SKU, or barcode.
 
-```
-User lands on / → Dashboard.jsx mounts
-    ↓
-GET /dashboard → Returns:
-  - today_sales, today_sales_count
-  - monthly_sales, monthly_sales_count
-  - monthly_expenses, monthly_profit
-  - customer_count, product_count, supplier_count
-  - low_stock (array), recent_sales, top_products
-    ↓
-Dashboard displays stat cards, recent sales table, top products
-```
+**Pagination:** Use the page controls at the bottom to navigate between pages.
 
-**Known Issues:** 8 field name mismatches. Hardcoded change percentages.
+### 4.2 Creating a Product
 
-### 6.3 Products Workflow
+1. Click **"Add Product"**
+2. Fill in the form:
 
-**List Products:**
-```
-/products → GET /products?search=&page=1&limit=15
-    ↓
-Displays: name, SKU, category_name, prices, stock, status
-    ↓
-Search: Debounced text input → filters by name/SKU/barcode
-    ↓
-Delete: Confirm dialog → DELETE /products/{id} → Refetch list
-```
+| Field | Required | Description |
+|-------|----------|-------------|
+| Name | Yes | Product name |
+| SKU | Yes | Stock Keeping Unit (auto-generated if blank) |
+| Barcode | No | Product barcode |
+| Category | Yes | Select from dropdown |
+| Brand | No | Select from dropdown |
+| Unit | Yes | Select from dropdown (e.g., pcs, kg, litre) |
+| Buying Price | Yes | Cost price |
+| Selling Price | Yes | Retail price |
+| Tax Rate | No | Tax percentage (default from settings) |
+| Description | No | Product description |
+| Warehouse | Yes | Initial stock warehouse |
+| Opening Stock | Yes | Initial quantity |
 
-**Create Product:**
-```
-/products/create → Form with fields
-    ↓
-POST /products → { name, sku, barcode, buying_price, selling_price, ... }
-    ↓
-On success → Toast → Redirect to /products
-```
+3. Click **"Create Product"**
+4. You are redirected to the products list
 
-**Known Issues:** Missing category/brand/unit dropdowns. `buying_price` field not saved by backend.
+### 4.3 Editing a Product
 
-### 6.4 Sales Workflow (POS Terminal)
+1. On the products list, click the **edit icon** (✏️) on the product row
+2. Modify any fields
+3. Click **"Update Product"**
 
-```
-/pos → Loads products grid + customer dropdown
-    ↓
-User searches products → GET /products?search=&limit=50
-    ↓
-User clicks product → Added to cart (local state)
-    ↓
-User selects customer → GET /customers (dropdown)
-    ↓
-User clicks Pay → Payment modal opens
-    ↓
-Selects payment method (cash/card/transfer/wallet)
-    ↓
-POST /sales → {
-  items: [{ product_id, quantity, unit_price, tax_rate }],
-  customer_id, discount_amount, paid_amount, payment_method
-}
-    ↓
-Backend validates stock → Creates sale + items → Decrements stock
-    ↓
-Returns receipt data → POS clears cart
-```
+### 4.4 Deleting a Product
 
-**Known Issues:** Field name mismatches in payload. Hold sales not persistent. warehouse_id/branch_id hardcoded.
+1. On the products list, click the **delete icon** (🗑) on the product row
+2. Confirm the deletion in the dialog
+3. The product is soft-deleted (removed from list)
 
-### 6.5 Purchases Workflow
+### 4.5 Product Stock
 
-**List:**
-```
-/purchases → GET /purchases → Displays: reference, supplier, total, status, date
-```
-
-**Create:**
-```
-/purchases/create → Fetches suppliers + products dropdowns
-    ↓
-User adds items (product, qty, unit_cost) → Calculates total
-    ↓
-POST /purchases → { supplier_id, warehouse_id, items, notes }
-    ↓
-Backend creates purchase with status "pending"
-```
-
-**Receive (Backend only, no UI):**
-```
-POST /purchases/{id}/receive → Updates received_quantity → Increments stock
-```
-
-**Known Issues:** No purchase detail view. No receive button in frontend.
-
-### 6.6 Customers Workflow
-
-**List:**
-```
-/customers → GET /customers → Displays: name, email, phone, wallet_balance
-    ↓
-Search: filters by name/email/phone
-    ↓
-Delete: SweetAlert → DELETE /customers/{id}
-```
-
-**Create:**
-```
-/customers/create → Form: first_name, last_name, email, phone, address, city, state
-    ↓
-POST /customers → Backend expects `name` (not first/last)
-```
-
-**Known Issues:** `first_name`/`last_name` vs `name` mismatch. Wallet operations exist but no UI.
-
-### 6.7 Categories/Brands/Units Workflow
-
-```
-/categories → GET /categories → Table with name, description, product_count
-    ↓
-Click "Add Category" → Modal with name + description
-    ↓
-POST /categories → Creates → Refetches list
-    ↓
-Edit: Click row → Modal pre-filled → PUT /categories/{id}
-    ↓
-Delete: SweetAlert → DELETE /categories/{id} → Refetches
-```
-
-**Status:** ✅ Fully functional. Minor product_count display issue.
-
-### 6.8 Reports Workflow
-
-```
-/reports → Tab: Daily | Weekly | Monthly | Yearly
-    ↓
-Date picker → GET /reports/{type}?date={date}
-    ↓
-Displays: sales totals, expenses, profit, top products, breakdown
-```
-
-**Known Issues:** Date picker only works for daily. Field name mismatches. No charts.
-
-### 6.9 Expenses Workflow
-
-```
-/expenses → GET /expenses → Table with category, amount, payment_method, date
-    ↓
-Click "Add Expense" → Modal with category (text!), amount, method, date, description
-    ↓
-POST /expenses → Category text sent but backend expects expense_category_id
-    ↓
-Delete: SweetAlert → DELETE /expenses/{id}
-```
-
-**Known Issues:** Category is text input (should be dropdown). No edit functionality.
-
-### 6.10 Settings Workflow
-
-```
-/settings → GET /settings/company → Form with company details
-    ↓
-Edit fields → PUT /settings/company → Saves
-```
-
-**Status:** ✅ Functional.
+Stock is tracked per warehouse in the `product_stocks` table. When a sale is made, stock decreases automatically. When a purchase is received, stock increases.
 
 ---
 
-## 7. API REFERENCE
+## 5. CATEGORIES, BRANDS & UNITS
+
+### 5.1 Categories
+
+**URL:** `/categories`
+
+Categories organize your products (e.g., Electronics, Clothing, Food).
+
+**Adding a Category:**
+1. Click **"Add Category"**
+2. Enter **Name** and **Description**
+3. Click **"Save"**
+
+**Editing:** Click the edit icon on the row, modify, save.  
+**Deleting:** Click the delete icon, confirm.  
+**Product Count:** Each category shows how many products belong to it.
+
+### 5.2 Brands
+
+**URL:** `/brands`
+
+Brands represent product manufacturers or suppliers (e.g., Samsung, Nike).
+
+Same CRUD operations as Categories: Add, Edit, Delete.
+
+### 5.3 Units
+
+**URL:** `/units`
+
+Units define how products are measured (e.g., pcs, kg, litre, box, dozen).
+
+Same CRUD operations as Categories: Add, Edit, Delete.
+
+---
+
+## 6. CUSTOMERS
+
+**URL:** `/customers`
+
+### 6.1 Viewing Customers
+
+The customer list shows:
+- Name
+- Email
+- Phone
+- Wallet balance
+- Status (Active/Inactive)
+
+**Search:** Filter by name, email, or phone.
+
+### 6.2 Creating a Customer
+
+1. Click **"Add Customer"**
+2. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| First Name | Yes | Customer first name |
+| Last Name | Yes | Customer last name |
+| Email | No | Email address |
+| Phone | No | Phone number |
+| Address | No | Street address |
+| City | No | City |
+| State | No | State |
+
+3. Click **"Create Customer"**
+
+### 6.3 Editing a Customer
+
+1. Click the **edit icon** on the customer row
+2. Modify fields
+3. Click **"Update Customer"**
+
+### 6.4 Deleting a Customer
+
+1. Click the **delete icon**
+2. Confirm deletion
+
+### 6.5 Customer Wallet
+
+Each customer has a digital wallet for prepaid transactions.
+
+**Viewing Balance:** The wallet balance is displayed on the customer list and customer detail page.
+
+**Top-up Wallet:**
+1. Navigate to the customer detail or use the API
+2. Enter the top-up amount
+3. Confirm — balance increases
+
+**Deduct from Wallet:**
+1. Enter the deduction amount
+2. Confirm — balance decreases
+
+**Wallet Payments in POS:**
+When a customer with wallet balance makes a sale, they can choose "Wallet" as the payment method. The amount is deducted from their wallet.
+
+---
+
+## 7. SUPPLIERS
+
+**URL:** `/suppliers`
+
+### 7.1 Viewing Suppliers
+
+The supplier list shows:
+- Company name
+- Contact person
+- Email
+- Phone
+- Status
+
+### 7.2 Creating a Supplier
+
+1. Click **"Add Supplier"**
+2. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Company Name | Yes | Supplier company name |
+| Contact Person | No | Primary contact name |
+| Email | No | Email address |
+| Phone | No | Phone number |
+| Address | No | Street address |
+| City | No | City |
+| State | No | State |
+
+3. Click **"Create Supplier"**
+
+### 7.3 Editing a Supplier
+
+1. Click the **edit icon** on the supplier row
+2. Modify fields
+3. Click **"Update Supplier"**
+
+### 7.4 Supplier Payments
+
+Track payments made to suppliers:
+- Navigate to supplier detail
+- Record payment with amount and method
+- Payment history is maintained
+
+---
+
+## 8. PURCHASES
+
+**URL:** `/purchases`
+
+Purchases track inventory bought from suppliers.
+
+### 8.1 Viewing Purchases
+
+The purchase list shows:
+- Reference number
+- Supplier name
+- Total amount
+- Payment status (Pending, Partial, Paid)
+- Purchase status (Pending, Received, Cancelled)
+- Date
+
+Click any row to view the full purchase detail.
+
+### 8.2 Creating a Purchase
+
+1. Click **"Create Purchase"**
+2. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Supplier | Yes | Select from dropdown |
+| Warehouse | Yes | Destination warehouse for stock |
+| Branch | Yes | Branch making the purchase |
+| Notes | No | Additional notes |
+
+3. Add **line items:**
+   - Select a product from dropdown
+   - Enter quantity
+   - Enter unit cost
+   - Line total is calculated automatically
+
+4. Add more items as needed
+5. Click **"Create Purchase"**
+
+The purchase is created with status **"Pending"** and payment status **"Pending"**.
+
+### 8.3 Purchase Detail
+
+Click a purchase reference number to view:
+- Supplier info
+- Warehouse and branch
+- List of items with quantities and costs
+- Total amount
+- Payment history
+- Summary (items count, amounts paid, balance due)
+
+### 8.4 Receiving a Purchase
+
+When goods arrive from the supplier:
+
+1. Navigate to the purchase detail page
+2. Click **"Receive"** or **"Mark as Received"**
+3. The purchase status changes to **"Received"**
+4. **Stock is automatically incremented** in the specified warehouse
+
+### 8.5 Recording Purchase Payments
+
+To record a payment to the supplier:
+
+1. Navigate to the purchase detail page
+2. Click **"Add Payment"**
+3. Enter payment amount and method
+4. The payment is recorded and balance is updated
+
+---
+
+## 9. SALES
+
+**URL:** `/sales`
+
+### 9.1 Viewing Sales
+
+The sales list shows:
+- Invoice number
+- Customer name
+- Total amount
+- Payment status (Paid, Partial, Unpaid)
+- Sale status (Completed, Voided, Returned)
+- Date
+
+**Search:** Filter by invoice number or customer name.
+
+### 9.2 Viewing a Sale
+
+1. Click the **invoice number** or view icon on the sale row
+2. The sale detail page shows:
+   - Invoice number and date
+   - Customer info
+   - Items list (product, quantity, price, total)
+   - Discount and tax amounts
+   - Payment method and amount
+   - Sale status
+
+### 9.3 Voiding a Sale
+
+1. Navigate to the sale detail page
+2. Click **"Void Sale"**
+3. Confirm the action
+4. The sale status changes to **"Voided"**
+5. Stock is restored
+
+> Only completed sales can be voided.
+
+### 9.4 Returning a Sale
+
+To process a return for a completed sale:
+
+1. Navigate to the sale detail page
+2. Click **"Return"** or **"Process Return"**
+3. Select the items being returned and quantities
+4. Confirm the return
+5. A return record is created
+6. Stock is restored
+
+---
+
+## 10. RETURNS
+
+**URL:** `/returns`
+
+The returns page lists all sale returns across the system.
+
+### 10.1 Viewing Returns
+
+The return list shows:
+- Original sale invoice number
+- Return date
+- Items returned
+- Refund amount
+- Reason
+
+Click any row to see the full return details.
+
+---
+
+## 11. EXPENSES
+
+**URL:** `/expenses`
+
+### 11.1 Viewing Expenses
+
+The expenses list shows:
+- Category
+- Amount
+- Payment method
+- Date
+- Description
+
+**Search:** Filter by category or description.
+
+### 11.2 Creating an Expense
+
+1. Click **"Add Expense"**
+2. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Category | Yes | Select from dropdown (e.g., Rent, Utilities, Salaries) |
+| Amount | Yes | Expense amount in ₦ |
+| Payment Method | Yes | Cash, Card, Transfer |
+| Date | Yes | Date of expense |
+| Description | No | Details about the expense |
+
+3. Click **"Create Expense"**
+
+### 11.3 Editing an Expense
+
+1. Click the **edit icon** on the expense row
+2. Modify fields
+3. Click **"Update Expense"**
+
+### 11.4 Deleting an Expense
+
+1. Click the **delete icon**
+2. Confirm deletion
+
+### 11.5 Expense Categories
+
+Manage expense categories under the expense categories section:
+- Rent, Utilities, Salaries, Transportation, Marketing, Maintenance, Office Supplies, Other
+
+---
+
+## 12. INVENTORY
+
+**URL:** `/inventory`
+
+### 12.1 Viewing Stock Levels
+
+The inventory page shows:
+- Product name
+- SKU
+- Warehouse
+- Current stock quantity
+- Category
+
+**Search:** Filter by product name or SKU.
+
+### 12.2 Stock Adjustments
+
+To manually adjust stock (e.g., for damaged or found items):
+
+1. Use the API endpoint: `POST /inventory/adjust`
+2. Provide product_id, warehouse_id, adjustment quantity, and reason
+3. Stock is updated and a movement record is created
+
+### 12.3 Stock Transfers
+
+To move stock between warehouses:
+
+1. Use the API endpoint: `POST /inventory/transfer`
+2. Provide product_id, from_warehouse_id, to_warehouse_id, and quantity
+3. Stock is decremented from source and incremented at destination
+
+### 12.4 Low Stock Alerts
+
+Products with stock below the threshold are flagged. View them on the inventory page or via the low-stock API endpoint.
+
+---
+
+## 13. WAREHOUSES & BRANCHES
+
+### 13.1 Warehouses
+
+**URL:** `/warehouses`
+
+Warehouses are physical locations where stock is stored.
+
+**Adding a Warehouse:**
+1. Click **"Add Warehouse"**
+2. Enter name, address, and branch association
+3. Click **"Save"**
+
+**Editing/Deleting:** Use the icons on each row.
+
+### 13.2 Branches
+
+**URL:** `/branches`
+
+Branches are business locations (e.g., Main Store, Downtown Branch).
+
+**Adding a Branch:**
+1. Click **"Add Branch"**
+2. Enter branch name and address
+3. Click **"Save"**
+
+Each branch can have multiple warehouses. Users are assigned to specific branches.
+
+---
+
+## 14. USERS & ROLES
+
+### 14.1 Users
+
+**URL:** `/users`
+
+**Viewing Users:**
+The user list shows:
+- Name (first + last)
+- Email
+- Role
+- Branch
+- Status (Active/Inactive)
+
+**Creating a User:**
+1. Click **"Add User"**
+2. Fill in:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| First Name | Yes | User first name |
+| Last Name | Yes | User last name |
+| Email | Yes | Login email |
+| Password | Yes | Login password |
+| Phone | No | Phone number |
+| Role | Yes | Select from dropdown |
+| Branch | Yes | Assigned branch |
+
+3. Click **"Create User"**
+
+**Editing a User:**
+1. Click the **edit icon** on the user row
+2. Modify fields (password is optional — leave blank to keep current)
+3. Click **"Update User"**
+
+**Toggling User Status:**
+1. Click the **status toggle** icon
+2. User is activated or deactivated
+
+**Assigning a Role:**
+Roles are assigned during creation or updated via edit.
+
+### 14.2 Roles
+
+**URL:** `/roles`
+
+Roles define what users can access in the system.
+
+**Predefined Roles:**
+| Role | Access Level |
+|------|-------------|
+| Super Admin | Full access to everything |
+| Admin | Full access except system settings |
+| Manager | Products, sales, purchases, reports, customers |
+| Cashier | POS terminal, products, customers |
+| Sales Rep | POS, products, customers |
+| Warehouse Manager | Inventory, products, purchases |
+| Accountant | Expenses, reports, sales |
+| Auditor | Read-only access to all modules |
+
+**Creating a Role:**
+1. Click **"Add Role"**
+2. Enter role name and description
+3. Click **"Save"**
+
+**Setting Permissions:**
+1. Click the **permissions icon** (🔑) on the role row
+2. A list of all permissions appears (grouped by module)
+3. Check/uncheck permissions as needed
+4. Click **"Save Permissions"**
+
+Permissions include: view, create, update, delete for each module (products, sales, customers, etc.)
+
+**Editing/Deleting Roles:** Use the icons on each row.
+
+> **Note:** Built-in roles (Super Admin, Admin, etc.) cannot be deleted.
+
+---
+
+## 15. REPORTS
+
+**URL:** `/reports`
+
+### 15.1 Report Types
+
+| Tab | Description |
+|-----|-------------|
+| Daily | Sales, expenses, and profit for a specific day |
+| Weekly | Aggregated data for a week |
+| Monthly | Aggregated data for a month |
+| Yearly | Aggregated data for a year |
+
+### 15.2 Generating a Report
+
+1. Select the report type (Daily, Weekly, Monthly, Yearly)
+2. Use the **date picker** to select the date or period
+3. The report loads automatically showing:
+   - Total sales
+   - Total expenses
+   - Net profit
+   - Top selling products
+   - Sales breakdown
+
+### 15.3 Available Report Endpoints
+
+| Report | Endpoint | Description |
+|--------|----------|-------------|
+| Daily | `GET /reports/daily?date=YYYY-MM-DD` | Single day report |
+| Weekly | `GET /reports/weekly?date=YYYY-MM-DD` | Week containing the date |
+| Monthly | `GET /reports/monthly?date=YYYY-MM-DD` | Month containing the date |
+| Yearly | `GET /reports/yearly?date=YYYY` | Year report |
+| Sales | `GET /reports/sales` | Sales breakdown |
+| Profit | `GET /reports/profit` | Profit analysis |
+| Inventory | `GET /reports/inventory` | Stock valuation |
+| Expenses | `GET /reports/expenses` | Expense breakdown |
+
+---
+
+## 16. SETTINGS
+
+**URL:** `/settings`
+
+### 16.1 Company Information
+
+View and update your company details:
+- Company name
+- Address
+- City, State, Country
+- Phone, Email
+- Tax rate (used in POS calculations)
+- Currency (default: NGN ₦)
+
+### 16.2 Updating Settings
+
+1. Click **"Edit"** or modify fields directly
+2. Click **"Save"**
+3. Changes take effect immediately
+
+---
+
+## 17. NOTIFICATIONS & ACTIVITY LOG
+
+### 17.1 Notifications
+
+**URL:** `/notifications`
+
+System notifications alert you to important events:
+- Low stock alerts
+- New sales
+- Purchase receipts
+
+**Marking as Read:**
+- Click the **checkmark** on a notification to mark it as read
+- Click **"Mark All Read"** to clear all unread notifications
+
+### 17.2 Activity Log
+
+**URL:** `/activity-log`
+
+The activity log is an audit trail showing:
+- Who performed an action
+- What action was performed
+- When it happened
+
+Examples: "John created product 'Widget'", "Jane voided sale #INV-0042"
+
+This is read-only — actions are logged automatically by the system.
+
+---
+
+## 18. PROFILE & ACCOUNT
+
+**URL:** `/profile`
+
+### 18.1 Viewing Profile
+
+Your profile page shows:
+- Full name
+- Email
+- Phone
+- Role
+- Branch
+- Account status
+
+### 18.2 Changing Password
+
+1. Navigate to Profile
+2. Click **"Change Password"**
+3. Enter your current password
+4. Enter the new password
+5. Confirm the new password
+6. Click **"Update Password"**
+
+---
+
+## 19. THEME & RESPONSIVE DESIGN
+
+### 19.1 Dark/Light Theme
+
+Toggle between dark and light mode:
+1. Click the **sun/moon icon** (☀️/🌙) in the top-right corner
+2. The theme changes instantly
+3. Your preference is saved in browser storage
+
+### 19.2 Mobile Responsive
+
+The entire application is responsive and works on:
+- **Desktop** (1200px+) — Full sidebar + content
+- **Tablet** (768px–1024px) — Collapsible sidebar
+- **Mobile** (≤768px) — Hidden sidebar (hamburger menu), stacked layouts
+
+**Key mobile behaviors:**
+- Sidebar becomes a slide-out drawer
+- Search bar is hidden in topbar
+- Tables scroll horizontally
+- Form grids stack vertically
+- Modals take full width
+- POS layout stacks cart below products
+
+---
+
+## 20. DEFAULT CREDENTIALS & SECURITY
+
+### 20.1 Default Login
+
+| User | Email | Password | Role |
+|------|-------|----------|------|
+| Admin | admin@smugflex.com | password | Super Admin |
+| Cashier | cashier@smugflex.com | password | Cashier |
+
+> **Change these passwords immediately in production.**
+
+### 20.2 Authentication Flow
+
+1. Login with email + password
+2. Backend validates and returns a JWT token
+3. Token is stored in browser localStorage
+4. Every API request includes: `Authorization: Bearer <token>`
+5. On token expiry (24 hours), a refresh token is used
+6. If refresh fails, you are redirected to login
+
+### 20.3 Security Best Practices
+
+- Change default passwords
+- Use HTTPS in production
+- Assign appropriate roles (don't give everyone Super Admin)
+- Monitor the activity log for suspicious actions
+- Regular database backups
+
+---
+
+## APPENDIX A: COMPLETE API REFERENCE
 
 ### Base URL
 ```
@@ -435,162 +935,186 @@ Header: Authorization: Bearer <token>
 }
 ```
 
-### Endpoints (103 total)
+### All Endpoints
 
-| Module | Method | Endpoint | Auth | Description |
-|--------|--------|----------|------|-------------|
-| **Auth** | POST | /auth/login | No | Login |
-| | POST | /auth/register | No | Register (SECURITY RISK) |
-| | POST | /auth/logout | Yes | Logout |
-| | POST | /auth/refresh | Yes | Refresh token |
-| | GET | /auth/me | Yes | Current user |
-| | POST | /auth/change-password | Yes | Change password |
-| **Dashboard** | GET | /dashboard | Yes | Dashboard stats |
-| | GET | /dashboard/sales-chart | Yes | Sales chart data |
-| | GET | /dashboard/profit-chart | Yes | Profit chart data |
-| **Users** | GET | /users | Yes | List users |
-| | POST | /users | Yes | Create user |
-| | GET | /users/{id} | Yes | Get user |
-| | PUT | /users/{id} | Yes | Update user |
-| | DELETE | /users/{id} | Yes | Delete user |
-| | PUT | /users/{id}/status | Yes | Toggle active |
-| | PUT | /users/{id}/assign-role | Yes | Assign role |
-| **Roles** | GET | /roles | Yes | List roles |
-| | POST | /roles | Yes | Create role |
-| | PUT | /roles/{id} | Yes | Update role |
-| | DELETE | /roles/{id} | Yes | Delete role |
-| | PUT | /roles/{id}/permissions | Yes | Set permissions |
-| **Permissions** | GET | /permissions | Yes | List permissions |
-| **Products** | GET | /products | Yes | List products |
-| | POST | /products | Yes | Create product |
-| | GET | /products/barcode/{barcode} | Yes | Barcode lookup |
-| | GET | /products/{id} | Yes | Get product |
-| | PUT | /products/{id} | Yes | Update product |
-| | DELETE | /products/{id} | Yes | Delete product |
-| | GET | /products/{id}/stock-history | Yes | Stock history |
-| **Categories** | GET | /categories | Yes | List categories |
-| | POST | /categories | Yes | Create category |
-| | GET | /categories/tree | Yes | Category tree |
-| | PUT | /categories/{id} | Yes | Update category |
-| | DELETE | /categories/{id} | Yes | Delete category |
-| **Brands** | GET | /brands | Yes | List brands |
-| | POST | /brands | Yes | Create brand |
-| | PUT | /brands/{id} | Yes | Update brand |
-| | DELETE | /brands/{id} | Yes | Delete brand |
-| **Units** | GET | /units | Yes | List units |
-| | POST | /units | Yes | Create unit |
-| | PUT | /units/{id} | Yes | Update unit |
-| | DELETE | /units/{id} | Yes | Delete unit |
-| **Customers** | GET | /customers | Yes | List customers |
-| | POST | /customers | Yes | Create customer |
-| | GET | /customers/{id} | Yes | Get customer |
-| | PUT | /customers/{id} | Yes | Update customer |
-| | DELETE | /customers/{id} | Yes | Delete customer |
-| | GET | /customers/{id}/wallet | Yes | Wallet info |
-| | POST | /customers/{id}/wallet/topup | Yes | Top up wallet |
-| | POST | /customers/{id}/wallet/deduct | Yes | Deduct wallet |
-| | GET | /customers/{id}/statement | Yes | Wallet statement |
-| **Suppliers** | GET | /suppliers | Yes | List suppliers |
-| | POST | /suppliers | Yes | Create supplier |
-| | GET | /suppliers/{id} | Yes | Get supplier |
-| | PUT | /suppliers/{id} | Yes | Update supplier |
-| | DELETE | /suppliers/{id} | Yes | Delete supplier |
-| | POST | /suppliers/{id}/payments | Yes | Add payment |
-| **Purchases** | GET | /purchases | Yes | List purchases |
-| | POST | /purchases | Yes | Create purchase |
-| | GET | /purchases/{id} | Yes | Get purchase |
-| | PUT | /purchases/{id} | Yes | Update purchase |
-| | POST | /purchases/{id}/receive | Yes | Receive purchase |
-| | POST | /purchases/{id}/payment | Yes | Add payment |
-| **Sales** | GET | /sales | Yes | List sales |
-| | POST | /sales | Yes | Create sale |
-| | GET | /sales/held | Yes | Held sales |
-| | POST | /sales/hold | Yes | Hold sale |
-| | GET | /sales/{id} | Yes | Get sale |
-| | POST | /sales/{id}/void | Yes | Void sale |
-| | POST | /sales/{id}/resume | Yes | Resume held sale |
-| | POST | /sales/{id}/return | Yes | Return sale |
-| | GET | /sales/{id}/receipt | Yes | Get receipt |
-| **Expenses** | GET | /expenses | Yes | List expenses |
-| | POST | /expenses | Yes | Create expense |
-| | PUT | /expenses/{id} | Yes | Update expense |
-| | DELETE | /expenses/{id} | Yes | Delete expense |
-| | GET | /expense-categories | Yes | List categories |
-| **Inventory** | GET | /inventory | Yes | Stock levels |
-| | POST | /inventory/adjust | Yes | Adjust stock |
-| | POST | /inventory/transfer | Yes | Transfer stock |
-| | GET | /inventory/low-stock | Yes | Low stock items |
-| **Warehouses** | GET | /warehouses | Yes | List warehouses |
-| | POST | /warehouses | Yes | Create warehouse |
-| | PUT | /warehouses/{id} | Yes | Update warehouse |
-| | DELETE | /warehouses/{id} | Yes | Delete warehouse |
-| **Branches** | GET | /branches | Yes | List branches |
-| | POST | /branches | Yes | Create branch |
-| | PUT | /branches/{id} | Yes | Update branch |
-| | DELETE | /branches/{id} | Yes | Delete branch |
-| **Reports** | GET | /reports/daily | Yes | Daily report |
-| | GET | /reports/weekly | Yes | Weekly report |
-| | GET | /reports/monthly | Yes | Monthly report |
-| | GET | /reports/yearly | Yes | Yearly report |
-| | GET | /reports/sales | Yes | Sales report |
-| | GET | /reports/profit | Yes | Profit report |
-| | GET | /reports/inventory | Yes | Inventory report |
-| | GET | /reports/expenses | Yes | Expense report |
-| **Settings** | GET | /settings/company | Yes | Get company info |
-| | PUT | /settings/company | Yes | Update company info |
-| **Notifications** | GET | /notifications | Yes | List notifications |
-| | PUT | /notifications/read-all | Yes | Mark all read |
-| | PUT | /notifications/{id}/read | Yes | Mark read |
-| **Activity** | GET | /activity-logs | Yes | List activity logs |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **Auth** | | |
+| POST | /auth/login | Login (public) |
+| POST | /auth/logout | Logout |
+| POST | /auth/refresh | Refresh token |
+| GET | /auth/me | Current user info |
+| POST | /auth/change-password | Change password |
+| **Dashboard** | | |
+| GET | /dashboard | Dashboard stats |
+| GET | /dashboard/sales-chart | Sales chart data |
+| GET | /dashboard/profit-chart | Profit chart data |
+| **Users** | | |
+| GET | /users | List users |
+| POST | /users | Create user |
+| GET | /users/{id} | Get user |
+| PUT | /users/{id} | Update user |
+| DELETE | /users/{id} | Delete user |
+| PUT | /users/{id}/status | Toggle status |
+| PUT | /users/{id}/assign-role | Assign role |
+| **Roles** | | |
+| GET | /roles | List roles |
+| POST | /roles | Create role |
+| GET | /roles/{id} | Get role with permissions |
+| PUT | /roles/{id} | Update role |
+| DELETE | /roles/{id} | Delete role |
+| PUT | /roles/{id}/permissions | Set permissions |
+| **Permissions** | | |
+| GET | /permissions | List all permissions |
+| **Products** | | |
+| GET | /products | List products (paginated, searchable) |
+| POST | /products | Create product |
+| GET | /products/barcode/{barcode} | Barcode lookup |
+| GET | /products/{id} | Get product |
+| PUT | /products/{id} | Update product |
+| DELETE | /products/{id} | Delete product |
+| GET | /products/{id}/stock-history | Stock movement history |
+| **Categories** | | |
+| GET | /categories | List categories |
+| POST | /categories | Create category |
+| GET | /categories/tree | Category tree |
+| PUT | /categories/{id} | Update category |
+| DELETE | /categories/{id} | Delete category |
+| **Brands** | | |
+| GET | /brands | List brands |
+| POST | /brands | Create brand |
+| PUT | /brands/{id} | Update brand |
+| DELETE | /brands/{id} | Delete brand |
+| **Units** | | |
+| GET | /units | List units |
+| POST | /units | Create unit |
+| PUT | /units/{id} | Update unit |
+| DELETE | /units/{id} | Delete unit |
+| **Customers** | | |
+| GET | /customers | List customers (paginated, searchable) |
+| POST | /customers | Create customer |
+| GET | /customers/{id} | Get customer |
+| PUT | /customers/{id} | Update customer |
+| DELETE | /customers/{id} | Delete customer |
+| GET | /customers/{id}/wallet | Wallet info |
+| POST | /customers/{id}/wallet/topup | Top up wallet |
+| POST | /customers/{id}/wallet/deduct | Deduct wallet |
+| GET | /customers/{id}/statement | Wallet statement |
+| **Suppliers** | | |
+| GET | /suppliers | List suppliers |
+| POST | /suppliers | Create supplier |
+| GET | /suppliers/{id} | Get supplier |
+| PUT | /suppliers/{id} | Update supplier |
+| DELETE | /suppliers/{id} | Delete supplier |
+| POST | /suppliers/{id}/payments | Add payment |
+| **Purchases** | | |
+| GET | /purchases | List purchases (paginated) |
+| POST | /purchases | Create purchase |
+| GET | /purchases/{id} | Get purchase detail |
+| PUT | /purchases/{id} | Update purchase |
+| POST | /purchases/{id}/receive | Receive purchase (stock++) |
+| POST | /purchases/{id}/payment | Add payment |
+| **Sales** | | |
+| GET | /sales | List sales (paginated, filterable) |
+| POST | /sales | Create sale |
+| GET | /sales/held | Get held sales |
+| POST | /sales/hold | Hold a sale |
+| GET | /sales/{id} | Get sale detail |
+| POST | /sales/{id}/void | Void sale |
+| POST | /sales/{id}/resume | Resume held sale |
+| POST | /sales/{id}/return | Return sale |
+| GET | /sales/{id}/receipt | Get receipt data |
+| **Returns** | | |
+| GET | /returns | List all returns |
+| **Expenses** | | |
+| GET | /expenses | List expenses |
+| POST | /expenses | Create expense |
+| PUT | /expenses/{id} | Update expense |
+| DELETE | /expenses/{id} | Delete expense |
+| GET | /expense-categories | List expense categories |
+| **Inventory** | | |
+| GET | /inventory | Stock levels (paginated) |
+| POST | /inventory/adjust | Adjust stock |
+| POST | /inventory/transfer | Transfer stock |
+| GET | /inventory/low-stock | Low stock items |
+| **Warehouses** | | |
+| GET | /warehouses | List warehouses |
+| POST | /warehouses | Create warehouse |
+| PUT | /warehouses/{id} | Update warehouse |
+| DELETE | /warehouses/{id} | Delete warehouse |
+| **Branches** | | |
+| GET | /branches | List branches |
+| POST | /branches | Create branch |
+| PUT | /branches/{id} | Update branch |
+| DELETE | /branches/{id} | Delete branch |
+| **Reports** | | |
+| GET | /reports/daily | Daily report |
+| GET | /reports/weekly | Weekly report |
+| GET | /reports/monthly | Monthly report |
+| GET | /reports/yearly | Yearly report |
+| GET | /reports/sales | Sales report |
+| GET | /reports/profit | Profit report |
+| GET | /reports/inventory | Inventory report |
+| GET | /reports/expenses | Expense report |
+| **Settings** | | |
+| GET | /settings/company | Get company info |
+| PUT | /settings/company | Update company info |
+| **Notifications** | | |
+| GET | /notifications | List notifications |
+| PUT | /notifications/read-all | Mark all read |
+| PUT | /notifications/{id}/read | Mark one read |
+| **Activity** | | |
+| GET | /activity-logs | List activity logs |
 
 ---
 
-## 8. DATABASE SCHEMA
+## APPENDIX B: DATABASE SCHEMA
 
-### Tables (35 total)
+### Tables (35+)
 
-| # | Table | Records | Purpose |
-|---|-------|---------|---------|
-| 1 | roles | 8 | User roles (Super Admin → Auditor) |
-| 2 | permissions | 55+ | Granular permissions per module |
-| 3 | role_permissions | — | Role-permission mapping |
-| 4 | branches | 2 | Business locations |
-| 5 | warehouses | 2 | Stock locations |
-| 6 | users | 2 | System users |
-| 7 | categories | 8 | Product categories |
-| 8 | brands | 8 | Product brands |
-| 9 | units | 12 | Measurement units |
-| 10 | products | 8 | Products catalog |
-| 11 | product_variants | 0 | Product variants |
-| 12 | product_stocks | 8 | Stock per warehouse |
-| 13 | stock_movements | 0 | Stock audit trail |
-| 14 | customers | 5 | Customer database |
-| 15 | customer_wallets | 5 | Customer wallets |
-| 16 | customer_wallet_transactions | 0 | Wallet transaction history |
-| 17 | suppliers | 3 | Supplier database |
-| 18 | purchases | 0 | Purchase orders |
-| 19 | purchase_items | 0 | Purchase line items |
-| 20 | purchase_payments | 0 | Purchase payments |
-| 21 | sales | 0 | Sales transactions |
-| 22 | sale_items | 0 | Sale line items |
-| 23 | sale_payments | 0 | Sale payments |
-| 24 | sale_returns | 0 | Returns |
-| 25 | return_items | 0 | Return line items |
-| 26 | expense_categories | 8 | Expense categories |
-| 27 | expenses | 0 | Expense records |
-| 28 | coupons | 0 | Discount coupons |
-| 29 | gift_cards | 0 | Gift cards |
-| 30 | reward_transactions | 0 | Reward points history |
-| 31 | shifts | 0 | Cash register shifts |
-| 32 | attendance | 0 | Employee attendance |
-| 33 | payroll | 0 | Employee payroll |
-| 34 | notifications | 0 | System notifications |
-| 35 | activity_logs | 0 | Audit trail |
-| 36 | company | 1 | Company settings |
-| 37 | settings | 17 | Application settings |
-| 38 | backups | 0 | Backup records |
+| Table | Purpose |
+|-------|---------|
+| roles | User roles (Super Admin → Auditor) |
+| permissions | Granular permissions per module |
+| role_permissions | Role-permission mapping |
+| branches | Business locations |
+| warehouses | Stock locations |
+| users | System users |
+| categories | Product categories |
+| brands | Product brands |
+| units | Measurement units |
+| products | Products catalog |
+| product_variants | Product variants |
+| product_stocks | Stock per warehouse |
+| stock_movements | Stock audit trail |
+| customers | Customer database |
+| customer_wallets | Customer wallets |
+| customer_wallet_transactions | Wallet transaction history |
+| suppliers | Supplier database |
+| purchases | Purchase orders |
+| purchase_items | Purchase line items |
+| purchase_payments | Purchase payments |
+| sales | Sales transactions |
+| sale_items | Sale line items |
+| sale_payments | Sale payments |
+| sale_returns | Returns |
+| return_items | Return line items |
+| expense_categories | Expense categories |
+| expenses | Expense records |
+| coupons | Discount coupons |
+| gift_cards | Gift cards |
+| reward_transactions | Reward points history |
+| shifts | Cash register shifts |
+| attendance | Employee attendance |
+| payroll | Employee payroll |
+| notifications | System notifications |
+| activity_logs | Audit trail |
+| company | Company settings |
+| settings | Application settings |
+| backups | Backup records |
 
-### Seed Data Included
+### Seed Data
+
 - 8 roles with 55+ permissions
 - 2 users (Super Admin + Cashier)
 - 2 branches, 2 warehouses
@@ -604,179 +1128,4 @@ Header: Authorization: Bearer <token>
 
 ---
 
-## 9. DEVELOPMENT ROADMAP
-
-### Phase 1: Critical Fixes (Week 1) 🔴
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 1.1 | Fix all frontend-backend field name mismatches (Dashboard, Products, POS, Sales, Customers, Reports) | 2 days | Unblocks all pages |
-| 1.2 | Add category/brand/unit dropdowns to ProductCreate and ProductEdit | 1 day | Unblocks product creation |
-| 1.3 | Fix Customer model alignment (first_name/last_name vs name) — pick one approach | 0.5 day | Unblocks customer CRUD |
-| 1.4 | Fix POS sale payload field names (unit_price→price, discount_amount→discount, paid_amount→amount_paid) | 0.5 day | Unblocks POS sales |
-| 1.5 | Remove or protect `/auth/register` endpoint | 0.5 day | Security |
-| 1.6 | Move JWT_SECRET and DB credentials to environment variables | 0.5 day | Security |
-| 1.7 | Fix SuppliersController `purchase_status` column error | 0.5 day | Runtime error |
-| 1.8 | Fix PurchasesController NOT NULL FK violations (supplier_id, branch_id) | 0.5 day | Runtime error |
-| 1.9 | Add `/returns` backend endpoint or update frontend to use correct endpoint | 1 day | Unblocks returns |
-
-**Total Phase 1: ~7 days**
-
-### Phase 2: Missing Pages & Features (Week 2-3) 🟡
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 2.1 | Create SupplierEdit.jsx + route | 0.5 day | Fixes broken edit link |
-| 2.2 | Create UserEdit.jsx + route | 0.5 day | Fixes broken edit link |
-| 2.3 | Create PurchaseDetail page with receive + payment buttons | 2 days | Unblocks purchase workflow |
-| 2.4 | Add expense category dropdown (fetch from /expense-categories) | 0.5 day | Fixes expense creation |
-| 2.5 | Add expense edit modal | 0.5 day | Completes expense CRUD |
-| 2.6 | Add returns create/initiate UI on SaleView page | 1 day | Unblocks returns |
-| 2.7 | Add category/brand/unit select to Expenses form | 0.5 day | Better UX |
-| 2.8 | Fix currency formatting across all pages (use formatCurrency) | 1 day | Consistency |
-| 2.9 | Add error state UI to all pages missing it | 1 day | Better UX |
-| 2.10 | Add pagination UI to Products page | 0.5 day | Usability |
-| 2.11 | Add pagination UI to all list pages | 1 day | Usability |
-| 2.12 | Fix Products Export button or remove it | 0.5 day | Cleanup |
-| 2.13 | Fix AuthContext to use api instance instead of raw axios | 0.5 day | Reliability |
-| 2.14 | Add profile editing (name, email, phone) | 1 day | Completeness |
-
-**Total Phase 2: ~11 days**
-
-### Phase 3: POS & Sales Enhancements (Week 3-4) 🟡
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 3.1 | Add barcode scanning input to POS | 1 day | Core POS feature |
-| 3.2 | Persist hold sales to backend (POST /sales/hold, GET /sales/held) | 1 day | Prevents data loss |
-| 3.3 | Add warehouse/branch selector to POS (from user profile) | 0.5 day | Multi-branch support |
-| 3.4 | Add stock limit enforcement on POS (warn when quantity > stock) | 1 day | Prevents overselling |
-| 3.5 | Make tax rate configurable from settings (not hardcoded 7.5%) | 0.5 day | Accuracy |
-| 3.6 | Add receipt printing modal | 1.5 days | Core POS feature |
-| 3.7 | Add sale return initiation from SaleView page | 1 day | Completes return workflow |
-| 3.8 | Add wallet balance check before sale | 0.5 day | Prevents negative wallet |
-
-**Total Phase 3: ~7 days**
-
-### Phase 4: Inventory & Reports (Week 4-5) 🟢
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 4.1 | Add inventory adjust UI | 1 day | Stock management |
-| 4.2 | Add inventory transfer UI (warehouse to warehouse) | 1.5 days | Multi-warehouse |
-| 4.3 | Add low stock alerts / notifications | 1 day | Proactive management |
-| 4.4 | Add date range selectors for weekly/monthly/yearly reports | 1 day | Report usability |
-| 4.5 | Add profit/COGS report view | 1 day | Financial visibility |
-| 4.6 | Add inventory report view | 1 day | Stock visibility |
-| 4.7 | Add expense report view | 1 day | Financial visibility |
-| 4.8 | Add chart visualizations (recharts or chart.js) | 2 days | Dashboard/Reports UX |
-| 4.9 | Add export functionality (CSV/PDF) | 1.5 days | Reporting |
-| 4.10 | Fix Dashboard hardcoded percentages (compute from data) | 0.5 day | Accuracy |
-
-**Total Phase 4: ~11.5 days**
-
-### Phase 5: Security & Performance (Week 5-6) 🟢
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 5.1 | Add API rate limiting (login, sensitive endpoints) | 1 day | Security |
-| 5.2 | Add CSRF protection | 0.5 day | Security |
-| 5.3 | Implement proper permission checks in controllers | 2 days | Security |
-| 5.4 | Add server-side token revocation (blacklist) | 1 day | Security |
-| 5.5 | Generate separate refresh tokens (not same as access) | 1 day | Security |
-| 5.6 | Add input sanitization audit | 1 day | Security |
-| 5.7 | Add database transaction wrappers for critical operations | 1 day | Data integrity |
-| 5.8 | Add API response caching (dashboard, reports) | 1 day | Performance |
-| 5.9 | Add lazy loading for images and heavy components | 0.5 day | Performance |
-| 5.10 | Add error logging / monitoring | 1 day | Operations |
-
-**Total Phase 5: ~9 days**
-
-### Phase 6: Advanced Features (Week 6-8) 🔵
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 6.1 | Product variants management UI | 2 days | Advanced catalog |
-| 6.2 | Coupon management CRUD | 1 day | Promotions |
-| 6.3 | Gift card management CRUD | 1 day | Sales channel |
-| 6.4 | Reward points management | 1 day | Customer loyalty |
-| 6.5 | Cash register shift management | 2 days | POS operations |
-| 6.6 | Employee attendance tracking | 2 days | HR |
-| 6.7 | Payroll management | 2 days | HR |
-| 6.8 | Database backup/restore from UI | 1 day | Operations |
-| 6.9 | Email notifications (low stock, daily summary) | 2 days | Automation |
-| 6.10 | Multi-language support (i18n) | 3 days | Localization |
-| 6.11 | Dark/Light theme toggle improvements | 1 day | UX |
-| 6.12 | Print receipt via thermal printer | 2 days | POS operations |
-
-**Total Phase 6: ~19 days**
-
-### Phase 7: Testing & Deployment (Week 8-10) 🔵
-
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 7.1 | Write unit tests for backend controllers | 3 days | Quality |
-| 7.2 | Write integration tests for critical workflows | 3 days | Quality |
-| 7.3 | Write frontend component tests | 2 days | Quality |
-| 7.4 | Load testing / stress testing | 1 day | Performance |
-| 7.5 | Security penetration testing | 1 day | Security |
-| 7.6 | Cross-browser testing (Chrome, Firefox, Safari, Edge) | 1 day | Compatibility |
-| 7.7 | Mobile device testing (iOS Safari, Android Chrome) | 1 day | Compatibility |
-| 7.8 | Production environment setup & hardening | 1 day | Deployment |
-| 7.9 | CI/CD pipeline setup | 1 day | DevOps |
-| 7.10 | Documentation (API docs, user guide, admin guide) | 2 days | Documentation |
-
-**Total Phase 7: ~16 days**
-
----
-
-### Roadmap Summary
-
-| Phase | Focus | Duration | Status |
-|-------|-------|----------|--------|
-| Phase 1 | Critical Fixes | 1 week | 🔴 Must do first |
-| Phase 2 | Missing Pages & Features | 2 weeks | 🟡 Core completeness |
-| Phase 3 | POS & Sales Enhancements | 1 week | 🟡 Core POS features |
-| Phase 4 | Inventory & Reports | 1 week | 🟢 Advanced features |
-| Phase 5 | Security & Performance | 1 week | 🟢 Production readiness |
-| Phase 6 | Advanced Features | 2 weeks | 🔵 Nice-to-have |
-| Phase 7 | Testing & Deployment | 2 weeks | 🔵 Launch preparation |
-| **Total** | | **~10 weeks** | |
-
----
-
-## 10. DEPLOYMENT CHECKLIST
-
-### Pre-Deployment
-- [ ] All Phase 1 critical fixes completed
-- [ ] Database schema imported to cPanel MySQL
-- [ ] Environment variables configured (JWT_SECRET, DB credentials)
-- [ ] CORS configured for production domain
-- [ ] `.htaccess` working for URL rewriting
-
-### Backend (cPanel)
-- [ ] Upload `backend-deploy/` contents to `/home/mdpjhtua/smug.com/`
-- [ ] Verify `index.php` is at root (not in subdirectory)
-- [ ] Test `GET /api/v1/auth/login` returns 405 (wrong method)
-- [ ] Test `POST /api/v1/auth/login` with credentials
-- [ ] Test `GET /api/v1/dashboard` with valid token
-- [ ] Verify all 103 routes respond correctly
-
-### Frontend (Vercel)
-- [ ] Push to `main` branch triggers auto-deploy
-- [ ] Verify `vercel.json` is in `frontend/` directory
-- [ ] Verify `.env` has correct `VITE_API_URL`
-- [ ] Test login flow end-to-end
-- [ ] Test all major workflows (Products, Sales, POS, etc.)
-- [ ] Verify mobile responsiveness
-
-### Post-Deployment
-- [ ] Change default admin password
-- [ ] Remove hardcoded credentials from source
-- [ ] Set up database backup cron job
-- [ ] Monitor error logs for first 48 hours
-- [ ] Test with multiple user roles
-
----
-
-*Document generated by automated end-to-end audit. For questions, refer to the codebase or contact the development team.*
+*Document last updated: July 14, 2026*
