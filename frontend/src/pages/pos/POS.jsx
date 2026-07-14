@@ -35,10 +35,15 @@ export default function POS() {
     },
   });
 
+  const { data: companySettings } = useQuery({
+    queryKey: ['settings-company'],
+    queryFn: () => api.get('/settings/company').then(res => res.data.data || res.data),
+  });
+
   const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.selling_price, 0);
   const totalDiscount = discountType === 'percentage' ? subtotal * (discount / 100) : discount;
   const taxableAmount = subtotal - totalDiscount;
-  const taxRate = 7.5;
+  const taxRate = companySettings?.tax_rate ?? 7.5;
   const taxAmount = taxableAmount * (taxRate / 100);
   const total = taxableAmount + taxAmount;
 
