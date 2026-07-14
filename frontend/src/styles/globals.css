@@ -73,9 +73,28 @@
 .login-brand {
   font-size: 1.625rem;
   font-weight: 800;
-  color: #F8FAFC;
   margin: 0;
-  letter-spacing: -0.025em;
+  letter-spacing: 0.02em;
+  display: flex;
+  gap: 1px;
+  justify-content: center;
+  text-shadow:
+    0 0 10px rgba(255, 107, 107, 0.3),
+    0 0 20px rgba(77, 171, 247, 0.2),
+    0 0 40px rgba(151, 117, 250, 0.15);
+}
+
+.login-brand span {
+  display: inline-block;
+  transition: transform 0.2s ease, text-shadow 0.2s ease;
+}
+
+.login-brand span:hover {
+  transform: translateY(-3px) scale(1.1);
+  text-shadow:
+    0 0 12px currentColor,
+    0 0 24px currentColor,
+    0 0 36px currentColor;
 }
 
 .login-tag {

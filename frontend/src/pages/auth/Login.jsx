@@ -45,7 +45,16 @@ export default function Login() {
             <div className="login-logo-icon">
               <i className="bi bi-grid-3x3-gap-fill" />
             </div>
-            <h1 className="login-brand">SmugFlex</h1>
+            <h1 className="login-brand">
+              <span style={{ color: '#FF6B6B' }}>S</span>
+              <span style={{ color: '#FFA94D' }}>m</span>
+              <span style={{ color: '#FFD43B' }}>u</span>
+              <span style={{ color: '#69DB7C' }}>g</span>
+              <span style={{ color: '#4DABF7' }}>F</span>
+              <span style={{ color: '#9775FA' }}>l</span>
+              <span style={{ color: '#F783AC' }}>e</span>
+              <span style={{ color: '#20C997' }}>x</span>
+            </h1>
             <p className="login-tag">Enterprise POS System</p>
           </div>
 

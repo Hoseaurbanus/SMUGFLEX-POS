@@ -82,7 +82,16 @@ export default function Sidebar({ collapsed, onToggle, open, onClose }) {
           </div>
           {!collapsed && (
             <div>
-              <h1 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#F8FAFC', margin: 0, lineHeight: 1.2 }}>SmugFlex</h1>
+              <h1 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
+                <span style={{ color: '#FF6B6B' }}>S</span>
+                <span style={{ color: '#FFA94D' }}>m</span>
+                <span style={{ color: '#FFD43B' }}>u</span>
+                <span style={{ color: '#69DB7C' }}>g</span>
+                <span style={{ color: '#4DABF7' }}>F</span>
+                <span style={{ color: '#9775FA' }}>l</span>
+                <span style={{ color: '#F783AC' }}>e</span>
+                <span style={{ color: '#20C997' }}>x</span>
+              </h1>
               <p style={{ fontSize: '0.5625rem', color: '#64748B', margin: 0 }}>POS System</p>
             </div>
           )}
