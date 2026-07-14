@@ -22,16 +22,18 @@ export default function POS() {
   const { data: products } = useQuery({
     queryKey: ['pos-products', search],
     queryFn: async () => {
-      const res = await api.get('/products', { params: { search, limit: 50, status: 'active' } });
-      return res.data.data?.items || [];
+      const res = await api.get('/products', { params: { search, per_page: 50, status: 'active' } });
+      const result = res.data;
+      return result?.data || result?.items || [];
     },
   });
 
   const { data: customers } = useQuery({
     queryKey: ['pos-customers'],
     queryFn: async () => {
-      const res = await api.get('/customers', { params: { limit: 100 } });
-      return res.data.data?.items || [];
+      const res = await api.get('/customers', { params: { per_page: 100 } });
+      const result = res.data;
+      return result?.data || result?.items || [];
     },
   });
 

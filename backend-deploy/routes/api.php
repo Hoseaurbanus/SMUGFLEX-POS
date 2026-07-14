@@ -26,6 +26,7 @@ $router->put('/api/v1/users/{id}/assign-role', function($id) { (new App\Controll
 // Roles
 $router->get('/api/v1/roles', function() { (new App\Controllers\RolesController())->index(); });
 $router->post('/api/v1/roles', function() { (new App\Controllers\RolesController())->create(); });
+$router->get('/api/v1/roles/{id}', function($id) { (new App\Controllers\RolesController())->show($id); });
 $router->put('/api/v1/roles/{id}', function($id) { (new App\Controllers\RolesController())->update($id); });
 $router->delete('/api/v1/roles/{id}', function($id) { (new App\Controllers\RolesController())->delete($id); });
 $router->put('/api/v1/roles/{id}/permissions', function($id) { (new App\Controllers\RolesController())->updatePermissions($id); });

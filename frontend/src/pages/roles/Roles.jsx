@@ -34,6 +34,11 @@ export default function Roles() {
     onError: (err) => toast.error(err.response?.data?.message || 'Error'),
   });
 
+  const permissionsMutation = useMutation({
+    mutationFn: ({ roleId, permission_ids }) => api.put(`/roles/${roleId}/permissions`, { permission_ids }),
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to save permissions'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/roles/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['roles'] }); toast.success('Role deleted'); },
@@ -47,12 +52,19 @@ export default function Roles() {
 
   const openCreate = () => { setEditId(null); setName(''); setDescription(''); setSelectedPerms([]); setShowModal(true); };
 
-  const openEdit = (role) => {
+  const openEdit = async (role) => {
     setEditId(role.id);
     setName(role.name);
     setDescription(role.description || '');
-    setSelectedPerms(role.permissions?.map(p => p.id) || []);
+    setSelectedPerms([]);
     setShowModal(true);
+    try {
+      const res = await api.get(`/roles/${role.id}`);
+      const fullRole = res.data.data || res.data;
+      setSelectedPerms(fullRole.permissions?.map(p => p.id) || []);
+    } catch {
+      // permissions not loaded, continue with empty
+    }
   };
 
   const togglePerm = (permId) => {
@@ -61,9 +73,24 @@ export default function Roles() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const payload = { name, description, permissions: selectedPerms };
-    if (editId) updateMutation.mutate(payload);
-    else createMutation.mutate(payload);
+    const payload = { name, description };
+
+    if (editId) {
+      updateMutation.mutate(payload, {
+        onSuccess: () => {
+          permissionsMutation.mutate({ roleId: editId, permission_ids: selectedPerms });
+        },
+      });
+    } else {
+      createMutation.mutate(payload, {
+        onSuccess: (res) => {
+          const newRoleId = res?.data?.data?.id;
+          if (newRoleId && selectedPerms.length > 0) {
+            permissionsMutation.mutate({ roleId: newRoleId, permission_ids: selectedPerms });
+          }
+        },
+      });
+    }
   };
 
   const handleDelete = (id, roleName) => {

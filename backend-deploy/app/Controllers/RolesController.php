@@ -88,6 +88,33 @@ class RolesController
         Response::success($role, 'Role updated');
     }
 
+    public function show(string $id): void
+    {
+        AuthMiddleware::authenticate();
+        $db = Database::getInstance();
+
+        $role = $db->fetch(
+            "SELECT r.*, (SELECT COUNT(*) FROM users WHERE role_id = r.id AND deleted_at IS NULL) as user_count
+             FROM roles r WHERE r.id = ?",
+            [$id]
+        );
+
+        if (!$role) {
+            Response::error('Role not found', 404);
+        }
+
+        $permissions = $db->fetchAll(
+            "SELECT p.* FROM permissions p
+             JOIN role_permissions rp ON rp.permission_id = p.id
+             WHERE rp.role_id = ?",
+            [$id]
+        );
+
+        $role['permissions'] = $permissions;
+
+        Response::success($role);
+    }
+
     public function delete(string $id): void
     {
         AuthMiddleware::authenticate();
